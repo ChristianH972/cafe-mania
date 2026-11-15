@@ -46,6 +46,19 @@ export function App() {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hoverTileRef = useRef<{ x: number; y: number } | null>(null);
+  const cameraRef = useRef<{ zoom: number; panX: number; panY: number }>({
+    zoom: 1.28,
+    panX: 0,
+    panY: 0,
+  });
+  const dragRef = useRef<{
+    active: boolean;
+    startX: number;
+    startY: number;
+    origPanX: number;
+    origPanY: number;
+    moved: boolean;
+  }>({ active: false, startX: 0, startY: 0, origPanX: 0, origPanY: 0, moved: false });
 
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [targetStoveId, setTargetStoveId] = useState<string | null>(null);
@@ -155,6 +168,9 @@ export function App() {
             placingCatalogId,
             timeSec: now / 1000,
             isNeighborView: Boolean(visitingNeighbor),
+            zoom: cameraRef.current.zoom,
+            panX: cameraRef.current.panX,
+            panY: cameraRef.current.panY,
           });
           ctx.restore();
         }
@@ -177,18 +193,55 @@ export function App() {
     const canvas = canvasRef.current;
     if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
-    const sx = e.clientX - rect.left;
-    const sy = e.clientY - rect.top;
+    const rawX = e.clientX - rect.left;
+    const rawY = e.clientY - rect.top;
+    const { zoom, panX, panY } = cameraRef.current;
+    const sx = (rawX - rect.width / 2 - panX) / zoom + rect.width / 2;
+    const sy = (rawY - rect.height / 2 - panY) / zoom + rect.height / 2;
+    const activeGrid = visitingNeighbor ? 8 : stateRef.current.gridSize;
     const originX = rect.width / 2;
-    const originY = rect.height / 2 - (stateRef.current.gridSize * TILE_H) / 2 + 28;
+    const originY = rect.height / 2 - (activeGrid * TILE_H) / 2 + 28;
     return screenToGrid(sx, sy, originX, originY);
   };
 
+  const handleCanvasWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+    const delta = e.deltaY < 0 ? 0.12 : -0.12;
+    cameraRef.current.zoom = Math.min(2.1, Math.max(0.7, cameraRef.current.zoom + delta));
+  };
+
+  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    dragRef.current = {
+      active: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      origPanX: cameraRef.current.panX,
+      origPanY: cameraRef.current.panY,
+      moved: false,
+    };
+  };
+
   const handleCanvasMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (dragRef.current.active) {
+      const dx = e.clientX - dragRef.current.startX;
+      const dy = e.clientY - dragRef.current.startY;
+      if (Math.hypot(dx, dy) > 6) {
+        dragRef.current.moved = true;
+        cameraRef.current.panX = dragRef.current.origPanX + dx;
+        cameraRef.current.panY = dragRef.current.origPanY + dy;
+      }
+    }
     hoverTileRef.current = getGridFromMouse(e);
   };
 
+  const handleCanvasMouseUp = () => {
+    dragRef.current.active = false;
+  };
+
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (dragRef.current.moved) {
+      dragRef.current.moved = false;
+      return;
+    }
     const pos = getGridFromMouse(e);
     if (!pos) return;
     const s = stateRef.current;
@@ -542,9 +595,40 @@ export function App() {
         <canvas
           ref={canvasRef}
           className="iso-canvas"
+          onWheel={handleCanvasWheel}
+          onMouseDown={handleCanvasMouseDown}
           onMouseMove={handleCanvasMove}
+          onMouseUp={handleCanvasMouseUp}
+          onMouseLeave={handleCanvasMouseUp}
           onClick={handleCanvasClick}
         />
+
+        <div className="camera-controls">
+          <button
+            title="Aproximar Zoom"
+            onClick={() => {
+              cameraRef.current.zoom = Math.min(2.1, cameraRef.current.zoom + 0.18);
+            }}
+          >
+            +
+          </button>
+          <button
+            title="Afastar Zoom"
+            onClick={() => {
+              cameraRef.current.zoom = Math.max(0.7, cameraRef.current.zoom - 0.18);
+            }}
+          >
+            −
+          </button>
+          <button
+            title="Centralizar Câmera"
+            onClick={() => {
+              cameraRef.current = { zoom: 1.28, panX: 0, panY: 0 };
+            }}
+          >
+            ⟲
+          </button>
+        </div>
 
         {placingCatalogId && (
           <div className="floating-banner">

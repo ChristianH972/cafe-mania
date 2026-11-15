@@ -208,15 +208,24 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
         ? availableCounters[Math.floor(Math.random() * availableCounters.length)].counter!.recipeId
         : unlocked[Math.floor(Math.random() * unlocked.length)].id;
 
+    const spawnFromTop = Math.random() < 0.5;
+    const sidewalkX = state.gridSize + 0.15;
+    const spawnY = spawnFromTop ? -2.5 : state.gridSize + 2.5;
+    const insidePath = findPath(doorX, doorY, chosenTable.x, chosenTable.y, state.gridSize, state.furniture, true);
+
     const customer: Customer = {
       id: nextId('cust'),
       name: CUSTOMER_NAMES[Math.floor(Math.random() * CUSTOMER_NAMES.length)],
       skinColor: SKIN_TONES[Math.floor(Math.random() * SKIN_TONES.length)],
       hairColor: HAIR_COLORS[Math.floor(Math.random() * HAIR_COLORS.length)],
       shirtColor: SHIRT_COLORS[Math.floor(Math.random() * SHIRT_COLORS.length)],
-      x: doorX,
-      y: doorY,
-      path: findPath(doorX, doorY, chosenTable.x, chosenTable.y, state.gridSize, state.furniture, true),
+      x: sidewalkX,
+      y: spawnY,
+      path: [
+        { x: sidewalkX, y: doorY },
+        { x: doorX, y: doorY },
+        ...insidePath,
+      ],
       state: 'walking_to_seat',
       targetTableId: chosenTable.instanceId,
       desiredRecipeId: desired,
@@ -254,7 +263,12 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
         state.rating = Math.max(0, Math.round((state.rating - 4) * 10) / 10);
         c.state = 'leaving';
         c.mood = 'angry';
-        c.path = findPath(c.x, c.y, doorX, doorY, state.gridSize, state.furniture, true);
+        const exitY = Math.random() < 0.5 ? -2.5 : state.gridSize + 2.5;
+        c.path = [
+          ...findPath(c.x, c.y, doorX, doorY, state.gridSize, state.furniture, true),
+          { x: state.gridSize + 0.15, y: doorY },
+          { x: state.gridSize + 0.15, y: exitY },
+        ];
       }
     } else if (c.state === 'eating') {
       c.eatTimer -= dt;
@@ -280,7 +294,12 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
 
         c.state = 'leaving';
         c.mood = 'happy';
-        c.path = findPath(c.x, c.y, doorX, doorY, state.gridSize, state.furniture, true);
+        const exitY = Math.random() < 0.5 ? -2.5 : state.gridSize + 2.5;
+        c.path = [
+          ...findPath(c.x, c.y, doorX, doorY, state.gridSize, state.furniture, true),
+          { x: state.gridSize + 0.15, y: doorY },
+          { x: state.gridSize + 0.15, y: exitY },
+        ];
       }
     } else if (c.state === 'leaving') {
       const arrived = moveAlongPath(c, dt, 2.7);
