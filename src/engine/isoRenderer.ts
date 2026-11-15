@@ -110,13 +110,16 @@ function shadeColor(hex: string, percent: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
+let smoothedDoorOpen = 0;
+let lastDoorTime = 0;
+
 function drawWalls(
   ctx: CanvasRenderingContext2D,
   originX: number,
   originY: number,
   gridSize: number,
   wallStyleId: string,
-  doorOpen: boolean
+  doorOpenProgress: number
 ) {
   const wallStyle = WALL_STYLES.find((w) => w.id === wallStyleId) ?? WALL_STYLES[0];
   const wallH = 84;
@@ -223,7 +226,8 @@ function drawWalls(
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 1.5;
 
-  if (!doorOpen) {
+  const p = Math.max(0, Math.min(1, doorOpenProgress));
+  if (p < 0.02) {
     // Closed double glass doors
     ctx.beginPath();
     ctx.moveTo(dLeft.sx + 2, dLeft.sy - 2);
@@ -234,27 +238,48 @@ function drawWalls(
     ctx.fill();
     ctx.stroke();
 
-    // Center divider
+    // Subtle glass reflection streak
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(dLeft.sx + 7, dLeft.sy - 12);
+    ctx.lineTo(dLeft.sx + 13, dLeft.sy - doorH + 12);
+    ctx.stroke();
+
+    // Center divider & brass handles
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(dMidX, dMidY);
     ctx.lineTo(dMidX, dMidY - doorH);
     ctx.stroke();
+
+    ctx.fillStyle = '#f1c40f';
+    ctx.fillRect(dMidX - 3, dMidY - doorH * 0.45, 2, 5);
+    ctx.fillRect(dMidX + 1, dMidY - doorH * 0.45, 2, 5);
   } else {
-    // Swung open inward!
+    // Smoothly swinging inward into the cafe
+    const leftEdgeX = dMidX + (dLeft.sx - 12 - dMidX) * p;
+    const leftEdgeY = dMidY + (dLeft.sy + 9 - dMidY) * p;
+    const rightEdgeX = dMidX + (dRight.sx - 12 - dMidX) * p;
+    const rightEdgeY = dMidY + (dRight.sy + 9 - dMidY) * p;
+
+    // Left door leaf
     ctx.beginPath();
-    ctx.moveTo(dLeft.sx, dLeft.sy);
-    ctx.lineTo(dLeft.sx, dLeft.sy - doorH);
-    ctx.lineTo(dLeft.sx - 11, dLeft.sy - doorH + 8);
-    ctx.lineTo(dLeft.sx - 11, dLeft.sy + 8);
+    ctx.moveTo(dLeft.sx + 1, dLeft.sy - 1);
+    ctx.lineTo(dLeft.sx + 1, dLeft.sy - doorH + 1);
+    ctx.lineTo(leftEdgeX, leftEdgeY - doorH + 1);
+    ctx.lineTo(leftEdgeX, leftEdgeY - 1);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
+    // Right door leaf
     ctx.beginPath();
-    ctx.moveTo(dRight.sx, dRight.sy);
-    ctx.lineTo(dRight.sx, dRight.sy - doorH);
-    ctx.lineTo(dRight.sx - 11, dRight.sy - doorH + 8);
-    ctx.lineTo(dRight.sx - 11, dRight.sy + 8);
+    ctx.moveTo(dRight.sx - 1, dRight.sy - 1);
+    ctx.lineTo(dRight.sx - 1, dRight.sy - doorH + 1);
+    ctx.lineTo(rightEdgeX, rightEdgeY - doorH + 1);
+    ctx.lineTo(rightEdgeX, rightEdgeY - 1);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
@@ -464,18 +489,29 @@ function drawFurnitureItem(
       shadeColor(bodyColor, -22)
     );
 
-    // Burners on top (4 classic grates)
+    // Burners on top (4 classic grates with metallic crossbars)
     const topCenterY = sy + 4 - 26 + (TILE_H * 0.78) / 2;
-    ctx.fillStyle = '#222';
-    for (const [bx, by] of [
+    const isCooking = f.stove?.status === 'cooking';
+    const burnerCoords: [number, number][] = [
       [-8, -2],
       [8, 2],
       [0, -6],
       [0, 5],
-    ]) {
+    ];
+    for (let bi = 0; bi < burnerCoords.length; bi++) {
+      const [bx, by] = burnerCoords[bi];
+      ctx.fillStyle = isCooking && bi === 1 ? '#e67e22' : '#222';
       ctx.beginPath();
       ctx.ellipse(sx + bx, topCenterY + by, 5, 2.7, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(sx + bx - 4, topCenterY + by);
+      ctx.lineTo(sx + bx + 4, topCenterY + by);
+      ctx.moveTo(sx + bx, topCenterY + by - 2.2);
+      ctx.lineTo(sx + bx, topCenterY + by + 2.2);
+      ctx.stroke();
     }
 
     // Control knobs on front panel
@@ -519,11 +555,21 @@ function drawFurnitureItem(
     // Cooking pan & status
     if (f.stove && f.stove.status !== 'idle') {
       const recipe = getRecipeById(f.stove.recipeId);
-      // Pan
+      // Pan with metallic rim highlight
       ctx.fillStyle = '#2d3436';
       ctx.beginPath();
       ctx.ellipse(sx + 2, topCenterY - 1, 9, 5, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.strokeStyle = '#95a5a6';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      // Pan handle
+      ctx.strokeStyle = '#1e272e';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sx + 9, topCenterY - 1);
+      ctx.lineTo(sx + 15, topCenterY + 2);
+      ctx.stroke();
 
       if (f.stove.status === 'cooking') {
         // Progress bar above stove
@@ -606,7 +652,25 @@ function drawFurnitureItem(
       shadeColor(item.accentColor, -14),
       shadeColor(item.accentColor, -24)
     );
-    // Cabinet handles
+    // Cabinet door panel outlines & handles
+    ctx.strokeStyle = 'rgba(0,0,0,0.16)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(sx - 18, sy - 6);
+    ctx.lineTo(sx - 4, sy + 1);
+    ctx.lineTo(sx - 4, sy + 11);
+    ctx.lineTo(sx - 18, sy + 4);
+    ctx.closePath();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(sx + 18, sy - 6);
+    ctx.lineTo(sx + 4, sy + 1);
+    ctx.lineTo(sx + 4, sy + 11);
+    ctx.lineTo(sx + 18, sy + 4);
+    ctx.closePath();
+    ctx.stroke();
+
     ctx.fillStyle = '#f1c40f';
     ctx.beginPath();
     ctx.arc(sx - 6, sy + 2, 1.5, 0, Math.PI * 2);
@@ -882,28 +946,41 @@ function drawCharacter(
   isWalking: boolean,
   role: 'customer' | 'chef' | 'waiter',
   bubbleText?: string,
-  bubbleBg = '#ffffff'
+  bubbleBg = '#ffffff',
+  isSeated = false,
+  isEating = false
 ) {
   const { sx, sy } = gridToScreen(gx, gy, originX, originY);
+  const seatDrop = isSeated ? 5 : 0;
   const footY = sy + TILE_H / 2 + 2;
-  const bob = isWalking ? Math.abs(Math.sin(animPhase * 8)) * 4 : 0;
+  const eatBob = isEating ? Math.sin(animPhase * 12) * 1.4 : 0;
+  const bob = (isWalking ? Math.abs(Math.sin(animPhase * 8)) * 4 : 0) - seatDrop + eatBob;
 
-  // Shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.2)';
-  ctx.beginPath();
-  ctx.ellipse(sx, footY, 10, 5, 0, 0, Math.PI * 2);
-  ctx.fill();
+  // Shadow (skip ground shadow when seated on a chair)
+  if (!isSeated) {
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.ellipse(sx, footY, 10, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
-  // Legs
+  // Legs (tucked when seated)
   const legSwing = isWalking ? Math.sin(animPhase * 8) * 3 : 0;
   ctx.strokeStyle = '#2c3e50';
   ctx.lineWidth = 3.5;
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(sx - 3, footY - 12 - bob);
-  ctx.lineTo(sx - 4 + legSwing, footY - 2);
-  ctx.moveTo(sx + 3, footY - 12 - bob);
-  ctx.lineTo(sx + 4 - legSwing, footY - 2);
+  if (isSeated) {
+    ctx.moveTo(sx - 3, footY - 12 - bob);
+    ctx.lineTo(sx - 4, footY - 5);
+    ctx.moveTo(sx + 3, footY - 12 - bob);
+    ctx.lineTo(sx + 4, footY - 5);
+  } else {
+    ctx.moveTo(sx - 3, footY - 12 - bob);
+    ctx.lineTo(sx - 4 + legSwing, footY - 2);
+    ctx.moveTo(sx + 3, footY - 12 - bob);
+    ctx.lineTo(sx + 4 - legSwing, footY - 2);
+  }
   ctx.stroke();
 
   // Body
@@ -1031,11 +1108,16 @@ export function renderCafeScene(params: RenderParams): void {
   ctx.closePath();
   ctx.fill();
 
-  // Check if any customer is near the doorway to swing doors open
+  // Check if any customer is near the doorway to swing doors open smoothly
   const doorX = Math.floor(gridSize / 2);
-  const doorOpen = customers.some(
-    (c) => Math.abs(c.x - doorX) < 1.2 && c.y >= -1.6 && c.y <= 1.2
-  );
+  const doorTarget = customers.some(
+    (c) => Math.abs(c.x - doorX) < 1.25 && c.y >= -1.6 && c.y <= 1.25
+  )
+    ? 1
+    : 0;
+  const dtDoor = lastDoorTime > 0 ? Math.min(0.1, Math.max(0.001, timeSec - lastDoorTime)) : 0.016;
+  lastDoorTime = timeSec;
+  smoothedDoorOpen += (doorTarget - smoothedDoorOpen) * Math.min(1, dtDoor * 8);
 
   // Draw customers currently outside on the sidewalk (y < -0.15) BEFORE the wall so they walk behind it
   const outsideCustomers = customers
@@ -1059,7 +1141,7 @@ export function renderCafeScene(params: RenderParams): void {
   }
 
   // Walls
-  drawWalls(ctx, originX, originY, gridSize, wallStyleId, doorOpen);
+  drawWalls(ctx, originX, originY, gridSize, wallStyleId, smoothedDoorOpen);
 
   // Floor tiles
   const floorStyle = FLOOR_STYLES.find((f) => f.id === floorStyleId) ?? FLOOR_STYLES[0];
@@ -1136,6 +1218,8 @@ export function renderCafeScene(params: RenderParams): void {
       bubble = '❤️';
     }
 
+    const isSeated = c.state === 'waiting_food' || c.state === 'eating';
+    const isEating = c.state === 'eating';
     drawables.push({
       depth: c.x + c.y + 0.16,
       draw: () =>
@@ -1152,7 +1236,9 @@ export function renderCafeScene(params: RenderParams): void {
           c.path.length > 0,
           'customer',
           bubble,
-          bubbleBg
+          bubbleBg,
+          isSeated,
+          isEating
         ),
     });
   }
