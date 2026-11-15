@@ -638,73 +638,152 @@ function drawFurnitureItem(
       ctx.fillText(`${f.counter.portions}`, sx + 19, topY - 8);
     }
   } else if (item.kind === 'table') {
-    // 1x1 Table pedestal & base foot (no embedded chairs!)
-    ctx.fillStyle = '#4a2c18';
+    const centerY = sy + TILE_H / 2;
+    const legColor = item.id === 'table_gold' ? '#b7950b' : '#5c3c24';
+    const legShade = item.id === 'table_gold' ? '#9a7d0a' : '#3e2716';
+
+    // Soft floor shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.14)';
     ctx.beginPath();
-    ctx.ellipse(sx, sy + TILE_H / 2 + 2, 9, 4.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx, centerY + 3, 21, 10, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#5c3c24';
-    ctx.fillRect(sx - 3.5, sy + 4, 7, 14);
+
+    // 4 Isometric table legs (back, left, right, front)
+    const tableLegs = [
+      { dx: 0, dy: -8, shade: legShade },
+      { dx: -19, dy: 0, shade: legColor },
+      { dx: 19, dy: 0, shade: legShade },
+      { dx: 0, dy: 9, shade: legColor },
+    ];
+    for (const leg of tableLegs) {
+      ctx.fillStyle = leg.shade;
+      ctx.fillRect(sx + leg.dx - 2, centerY + leg.dy - 17, 4, 17);
+      // Little foot pad
+      ctx.fillStyle = '#2d1c10';
+      ctx.beginPath();
+      ctx.ellipse(sx + leg.dx, centerY + leg.dy, 2.5, 1.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Under-apron / saia da mesa
+    drawIsoBox(
+      ctx,
+      sx,
+      sy - 1,
+      TILE_W * 0.72,
+      TILE_H * 0.72,
+      3,
+      shadeColor(item.color, -12),
+      shadeColor(item.color, -18),
+      shadeColor(item.color, -30)
+    );
 
     // 3D Tabletop filling 1x1 tile so adjacent tables connect seamlessly
-    const topY = sy - 7;
+    const topY = sy - 9;
     drawIsoBox(
       ctx,
       sx,
       topY + 4,
       TILE_W * 0.88,
       TILE_H * 0.88,
-      4,
-      item.accentColor,
-      item.color,
-      shadeColor(item.color, -20)
-    );
-
-    if (item.id === 'table_vip') {
-      drawIsoDiamond(
-        ctx,
-        sx,
-        topY + 4,
-        TILE_W * 0.44,
-        TILE_H * 0.44,
-        '#e74c3c'
-      );
-    }
-  } else if (item.kind === 'chair') {
-    // 1x1 Isometric Chair
-    const legColor = '#5c3c24';
-    ctx.strokeStyle = legColor;
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(sx - 7, sy + TILE_H / 2 - 2);
-    ctx.lineTo(sx - 7, sy + TILE_H / 2 + 5);
-    ctx.moveTo(sx + 7, sy + TILE_H / 2 - 2);
-    ctx.lineTo(sx + 7, sy + TILE_H / 2 + 5);
-    ctx.stroke();
-
-    // Seat cushion
-    drawIsoBox(
-      ctx,
-      sx,
-      sy + TILE_H / 2 - 1,
-      24,
-      13,
       5,
       item.accentColor,
       item.color,
-      shadeColor(item.color, -20)
+      shadeColor(item.color, -22)
     );
 
-    // Backrest (rotates with f.rotation)
-    const backOffset = f.rotation % 2 === 0 ? -9 : 9;
+    // Tablecloth & tabletop details
+    if (item.id === 'table_vip') {
+      // Classic red & white checkered runner
+      drawIsoDiamond(ctx, sx, topY + 2, TILE_W * 0.46, TILE_H * 0.46, '#e74c3c');
+      drawIsoDiamond(ctx, sx, topY + 5, TILE_W * 0.22, TILE_H * 0.22, '#ffffff');
+    } else if (item.id === 'table_pink') {
+      // Classic 2010 pink cloth with white inner trim & napkin
+      drawIsoDiamond(ctx, sx, topY + 1, TILE_W * 0.66, TILE_H * 0.66, '#f8a5c2', '#ffffff', 1.2);
+    } else if (item.id === 'table_gold') {
+      // Royal VIP gold trim & candle
+      drawIsoDiamond(ctx, sx, topY + 2, TILE_W * 0.62, TILE_H * 0.62, '#9b59b6', '#f7dc6f', 1.5);
+    } else {
+      // Wood grain accent lines
+      ctx.strokeStyle = 'rgba(120, 65, 25, 0.22)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(sx - 12, topY + 12);
+      ctx.lineTo(sx + 10, topY + 22);
+      ctx.moveTo(sx - 4, topY + 8);
+      ctx.lineTo(sx + 16, topY + 18);
+      ctx.stroke();
+    }
+
+    // Cute tabletop centerpiece (salt/pepper or tiny flower)
+    ctx.fillStyle = item.id === 'table_gold' ? '#f1c40f' : '#ffffff';
+    ctx.beginPath();
+    ctx.arc(sx, topY + 12, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = item.id === 'table_pink' ? '#e84393' : '#e74c3c';
+    ctx.beginPath();
+    ctx.arc(sx, topY + 9.5, 2, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (item.kind === 'chair') {
+    const centerY = sy + TILE_H / 2;
+    const legColor = item.id === 'chair_gold' ? '#b7950b' : '#5c3c24';
+    const legShade = item.id === 'chair_gold' ? '#9a7d0a' : '#3e2716';
+
+    // Soft floor shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.14)';
+    ctx.beginPath();
+    ctx.ellipse(sx, centerY + 3, 12, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 4 Isometric chair legs
+    const chairLegs = [
+      { dx: 0, dy: -5, shade: legShade },
+      { dx: -10, dy: 0, shade: legColor },
+      { dx: 10, dy: 0, shade: legShade },
+      { dx: 0, dy: 5, shade: legColor },
+    ];
+    for (const leg of chairLegs) {
+      ctx.fillStyle = leg.shade;
+      ctx.fillRect(sx + leg.dx - 1.3, centerY + leg.dy - 10, 2.6, 10);
+    }
+
+    // Seat frame + cushion
     drawIsoBox(
       ctx,
-      sx + backOffset,
-      sy + TILE_H / 2 - 7,
-      8,
-      6,
-      14,
+      sx,
+      centerY - 3,
+      24,
+      13,
+      4,
+      item.accentColor,
       item.color,
+      shadeColor(item.color, -22)
+    );
+    drawIsoDiamond(ctx, sx, centerY - 6, 18, 9, shadeColor(item.accentColor, 10));
+
+    // Backrest (4-direction rotation)
+    const rot = f.rotation % 4;
+    const backCoords = [
+      { dx: -7, dy: -6 },
+      { dx: 7, dy: -6 },
+      { dx: 7, dy: -2 },
+      { dx: -7, dy: -2 },
+    ][rot];
+
+    // Two backrest posts + top rail + center spindle
+    ctx.fillStyle = item.color;
+    ctx.fillRect(sx + backCoords.dx - 5, centerY + backCoords.dy - 17, 2.5, 13);
+    ctx.fillRect(sx + backCoords.dx + 2.5, centerY + backCoords.dy - 17, 2.5, 13);
+    ctx.fillStyle = shadeColor(item.accentColor, -8);
+    ctx.fillRect(sx + backCoords.dx - 1, centerY + backCoords.dy - 15, 2, 11);
+    drawIsoBox(
+      ctx,
+      sx + backCoords.dx,
+      centerY + backCoords.dy - 15,
+      11,
+      5,
+      3,
+      item.accentColor,
       item.color,
       shadeColor(item.color, -20)
     );
