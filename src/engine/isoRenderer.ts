@@ -438,7 +438,8 @@ function drawFurnitureItem(
   originY: number,
   timeSec: number,
   isSelected: boolean,
-  isNeighborView?: boolean
+  isNeighborView?: boolean,
+  allFurniture: PlacedFurniture[] = []
 ) {
   const item = getCatalogItem(f.catalogId);
   if (!item) return;
@@ -758,25 +759,44 @@ function drawFurnitureItem(
     );
     drawIsoDiamond(ctx, sx, centerY - 16, 18, 9, shadeColor(item.accentColor, 10));
 
-    // Backrest attached directly to the seat edge (4-direction rotation)
-    const rot = f.rotation % 4;
-    const backCoords = [
-      { dx: -5, dy: -13 },
-      { dx: 5, dy: -13 },
-      { dx: 5, dy: -9 },
-      { dx: -5, dy: -9 },
+    // Auto-detect adjacent table so chair backrest faces away from table
+    const adjTable = allFurniture.find(
+      (t) => t.table && Math.abs(t.x - f.x) + Math.abs(t.y - f.y) === 1
+    );
+    let rot = f.rotation % 4;
+    if (adjTable && f.rotation === 0) {
+      if (adjTable.x > f.x) rot = 0; // table front-right -> backrest top-left
+      else if (adjTable.y > f.y) rot = 1; // table front-left -> backrest top-right
+      else if (adjTable.x < f.x) rot = 2; // table back-left -> backrest bottom-right
+      else if (adjTable.y < f.y) rot = 3; // table back-right -> backrest bottom-left
+    }
+
+    // Backrest posts aligned along the true isometric edge of the seat
+    const edgeConfigs = [
+      // 0: top-left edge
+      { p1: { dx: -9, dy: -12 }, p2: { dx: -1, dy: -16 }, rail: { dx: -5, dy: -14 } },
+      // 1: top-right edge
+      { p1: { dx: 1, dy: -16 }, p2: { dx: 9, dy: -12 }, rail: { dx: 5, dy: -14 } },
+      // 2: bottom-right edge
+      { p1: { dx: 9, dy: -11 }, p2: { dx: 1, dy: -7 }, rail: { dx: 5, dy: -9 } },
+      // 3: bottom-left edge
+      { p1: { dx: -9, dy: -11 }, p2: { dx: -1, dy: -7 }, rail: { dx: -5, dy: -9 } },
     ][rot];
 
-    // Two backrest posts + center spindle + top rail
     ctx.fillStyle = item.color;
-    ctx.fillRect(sx + backCoords.dx - 5, centerY + backCoords.dy - 12, 2.5, 13);
-    ctx.fillRect(sx + backCoords.dx + 2.5, centerY + backCoords.dy - 12, 2.5, 13);
+    ctx.fillRect(sx + edgeConfigs.p1.dx - 1.2, centerY + edgeConfigs.p1.dy - 12, 2.4, 12);
+    ctx.fillRect(sx + edgeConfigs.p2.dx - 1.2, centerY + edgeConfigs.p2.dy - 12, 2.4, 12);
     ctx.fillStyle = shadeColor(item.accentColor, -8);
-    ctx.fillRect(sx + backCoords.dx - 1, centerY + backCoords.dy - 10, 2, 11);
+    ctx.fillRect(
+      sx + (edgeConfigs.p1.dx + edgeConfigs.p2.dx) / 2 - 1,
+      centerY + (edgeConfigs.p1.dy + edgeConfigs.p2.dy) / 2 - 10,
+      2,
+      10
+    );
     drawIsoBox(
       ctx,
-      sx + backCoords.dx,
-      centerY + backCoords.dy - 12,
+      sx + edgeConfigs.rail.dx,
+      centerY + edgeConfigs.rail.dy - 13,
       11,
       5,
       3,
@@ -785,25 +805,34 @@ function drawFurnitureItem(
       shadeColor(item.color, -20)
     );
 
+    // Position food/dirty plate toward the adjacent table edge
+    let plateX = sx;
+    let plateY = sy - 6;
+    if (adjTable) {
+      const tblScreen = gridToScreen(adjTable.x, adjTable.y, originX, originY);
+      plateX = sx + (tblScreen.sx - sx) * 0.65;
+      plateY = sy + (tblScreen.sy - sy) * 0.65 - 6;
+    }
+
     if (f.chair?.hasFood && f.chair.servedRecipeId) {
       const recipe = getRecipeById(f.chair.servedRecipeId);
       ctx.font = '15px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(recipe?.emoji ?? '🍽️', sx, sy - 6);
+      ctx.fillText(recipe?.emoji ?? '🍽️', plateX, plateY);
     } else if (f.chair?.dirty) {
       ctx.fillStyle = '#bdc3c7';
       ctx.beginPath();
-      ctx.ellipse(sx, sy + 2, 6, 3.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(plateX, plateY, 6, 3.5, 0, 0, Math.PI * 2);
       ctx.fill();
       const pulse = Math.sin(timeSec * 6) * 2;
       ctx.fillStyle = '#f39c12';
       ctx.beginPath();
-      ctx.roundRect(sx - 20, sy - 22 + pulse, 40, 17, 8);
+      ctx.roundRect(sx - 20, sy - 28 + pulse, 40, 17, 8);
       ctx.fill();
       ctx.font = 'bold 10px Nunito, sans-serif';
       ctx.fillStyle = '#fff';
       ctx.textAlign = 'center';
-      ctx.fillText('🧹 LIMPAR', sx, sy - 10 + pulse);
+      ctx.fillText('🧹 LIMPAR', sx, sy - 16 + pulse);
     }
   } else if (item.kind === 'decor') {
     if (item.id === 'decor_plant') {
@@ -1086,7 +1115,8 @@ export function renderCafeScene(params: RenderParams): void {
           originY,
           timeSec,
           f.instanceId === selectedFurnitureId,
-          params.isNeighborView
+          params.isNeighborView,
+          furniture
         ),
     });
   }
