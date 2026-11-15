@@ -645,23 +645,22 @@ function drawFurnitureItem(
     // Soft floor shadow
     ctx.fillStyle = 'rgba(0, 0, 0, 0.14)';
     ctx.beginPath();
-    ctx.ellipse(sx, centerY + 3, 21, 10, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx, centerY + 2, 22, 10, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 4 Isometric table legs (back, left, right, front)
+    // 4 Isometric table legs (back, left, right, front) — 13px tall
     const tableLegs = [
-      { dx: 0, dy: -8, shade: legShade },
-      { dx: -19, dy: 0, shade: legColor },
-      { dx: 19, dy: 0, shade: legShade },
-      { dx: 0, dy: 9, shade: legColor },
+      { x: sx, y: sy + 7, shade: legShade },
+      { x: sx - 20, y: sy + 17, shade: legColor },
+      { x: sx + 20, y: sy + 17, shade: legShade },
+      { x: sx, y: sy + 26, shade: legColor },
     ];
     for (const leg of tableLegs) {
       ctx.fillStyle = leg.shade;
-      ctx.fillRect(sx + leg.dx - 2, centerY + leg.dy - 17, 4, 17);
-      // Little foot pad
+      ctx.fillRect(leg.x - 2, leg.y - 13, 4, 13);
       ctx.fillStyle = '#2d1c10';
       ctx.beginPath();
-      ctx.ellipse(sx + leg.dx, centerY + leg.dy, 2.5, 1.3, 0, 0, Math.PI * 2);
+      ctx.ellipse(leg.x, leg.y, 2.5, 1.3, 0, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -669,7 +668,7 @@ function drawFurnitureItem(
     drawIsoBox(
       ctx,
       sx,
-      sy - 1,
+      sy - 11,
       TILE_W * 0.72,
       TILE_H * 0.72,
       3,
@@ -678,12 +677,12 @@ function drawFurnitureItem(
       shadeColor(item.color, -30)
     );
 
-    // 3D Tabletop filling 1x1 tile so adjacent tables connect seamlessly
-    const topY = sy - 9;
+    // 3D Tabletop filling 1x1 tile cleanly above the legs
+    const topBoxY = sy - 16;
     drawIsoBox(
       ctx,
       sx,
-      topY + 4,
+      topBoxY,
       TILE_W * 0.88,
       TILE_H * 0.88,
       5,
@@ -692,37 +691,35 @@ function drawFurnitureItem(
       shadeColor(item.color, -22)
     );
 
+    const surfaceTopY = topBoxY - 5;
+
     // Tablecloth & tabletop details
     if (item.id === 'table_vip') {
-      // Classic red & white checkered runner
-      drawIsoDiamond(ctx, sx, topY + 2, TILE_W * 0.46, TILE_H * 0.46, '#e74c3c');
-      drawIsoDiamond(ctx, sx, topY + 5, TILE_W * 0.22, TILE_H * 0.22, '#ffffff');
+      drawIsoDiamond(ctx, sx, surfaceTopY + 7, TILE_W * 0.46, TILE_H * 0.46, '#e74c3c');
+      drawIsoDiamond(ctx, sx, surfaceTopY + 11, TILE_W * 0.22, TILE_H * 0.22, '#ffffff');
     } else if (item.id === 'table_pink') {
-      // Classic 2010 pink cloth with white inner trim & napkin
-      drawIsoDiamond(ctx, sx, topY + 1, TILE_W * 0.66, TILE_H * 0.66, '#f8a5c2', '#ffffff', 1.2);
+      drawIsoDiamond(ctx, sx, surfaceTopY + 4, TILE_W * 0.66, TILE_H * 0.66, '#f8a5c2', '#ffffff', 1.2);
     } else if (item.id === 'table_gold') {
-      // Royal VIP gold trim & candle
-      drawIsoDiamond(ctx, sx, topY + 2, TILE_W * 0.62, TILE_H * 0.62, '#9b59b6', '#f7dc6f', 1.5);
+      drawIsoDiamond(ctx, sx, surfaceTopY + 5, TILE_W * 0.62, TILE_H * 0.62, '#9b59b6', '#f7dc6f', 1.5);
     } else {
-      // Wood grain accent lines
       ctx.strokeStyle = 'rgba(120, 65, 25, 0.22)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(sx - 12, topY + 12);
-      ctx.lineTo(sx + 10, topY + 22);
-      ctx.moveTo(sx - 4, topY + 8);
-      ctx.lineTo(sx + 16, topY + 18);
+      ctx.moveTo(sx - 12, surfaceTopY + 12);
+      ctx.lineTo(sx + 10, surfaceTopY + 22);
+      ctx.moveTo(sx - 4, surfaceTopY + 8);
+      ctx.lineTo(sx + 16, surfaceTopY + 18);
       ctx.stroke();
     }
 
-    // Cute tabletop centerpiece (salt/pepper or tiny flower)
+    // Cute tabletop centerpiece
     ctx.fillStyle = item.id === 'table_gold' ? '#f1c40f' : '#ffffff';
     ctx.beginPath();
-    ctx.arc(sx, topY + 12, 2.2, 0, Math.PI * 2);
+    ctx.arc(sx, surfaceTopY + 15, 2.2, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = item.id === 'table_pink' ? '#e84393' : '#e74c3c';
     ctx.beginPath();
-    ctx.arc(sx, topY + 9.5, 2, 0, Math.PI * 2);
+    ctx.arc(sx, surfaceTopY + 12.5, 2, 0, Math.PI * 2);
     ctx.fill();
   } else if (item.kind === 'chair') {
     const centerY = sy + TILE_H / 2;
@@ -732,54 +729,54 @@ function drawFurnitureItem(
     // Soft floor shadow
     ctx.fillStyle = 'rgba(0, 0, 0, 0.14)';
     ctx.beginPath();
-    ctx.ellipse(sx, centerY + 3, 12, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx, centerY + 2, 12, 6, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 4 Isometric chair legs
+    // 4 Isometric chair legs touching floor and supporting seat
     const chairLegs = [
-      { dx: 0, dy: -5, shade: legShade },
-      { dx: -10, dy: 0, shade: legColor },
-      { dx: 10, dy: 0, shade: legShade },
-      { dx: 0, dy: 5, shade: legColor },
+      { x: sx, y: centerY - 5, shade: legShade },
+      { x: sx - 10, y: centerY, shade: legColor },
+      { x: sx + 10, y: centerY, shade: legShade },
+      { x: sx, y: centerY + 5, shade: legColor },
     ];
     for (const leg of chairLegs) {
       ctx.fillStyle = leg.shade;
-      ctx.fillRect(sx + leg.dx - 1.3, centerY + leg.dy - 10, 2.6, 10);
+      ctx.fillRect(leg.x - 1.3, leg.y - 8, 2.6, 8);
     }
 
-    // Seat frame + cushion
+    // Seat frame + cushion sitting on top of the 8px legs
     drawIsoBox(
       ctx,
       sx,
-      centerY - 3,
+      centerY - 14,
       24,
-      13,
+      12,
       4,
       item.accentColor,
       item.color,
       shadeColor(item.color, -22)
     );
-    drawIsoDiamond(ctx, sx, centerY - 6, 18, 9, shadeColor(item.accentColor, 10));
+    drawIsoDiamond(ctx, sx, centerY - 16, 18, 9, shadeColor(item.accentColor, 10));
 
-    // Backrest (4-direction rotation)
+    // Backrest attached directly to the seat edge (4-direction rotation)
     const rot = f.rotation % 4;
     const backCoords = [
-      { dx: -7, dy: -6 },
-      { dx: 7, dy: -6 },
-      { dx: 7, dy: -2 },
-      { dx: -7, dy: -2 },
+      { dx: -5, dy: -13 },
+      { dx: 5, dy: -13 },
+      { dx: 5, dy: -9 },
+      { dx: -5, dy: -9 },
     ][rot];
 
-    // Two backrest posts + top rail + center spindle
+    // Two backrest posts + center spindle + top rail
     ctx.fillStyle = item.color;
-    ctx.fillRect(sx + backCoords.dx - 5, centerY + backCoords.dy - 17, 2.5, 13);
-    ctx.fillRect(sx + backCoords.dx + 2.5, centerY + backCoords.dy - 17, 2.5, 13);
+    ctx.fillRect(sx + backCoords.dx - 5, centerY + backCoords.dy - 12, 2.5, 13);
+    ctx.fillRect(sx + backCoords.dx + 2.5, centerY + backCoords.dy - 12, 2.5, 13);
     ctx.fillStyle = shadeColor(item.accentColor, -8);
-    ctx.fillRect(sx + backCoords.dx - 1, centerY + backCoords.dy - 15, 2, 11);
+    ctx.fillRect(sx + backCoords.dx - 1, centerY + backCoords.dy - 10, 2, 11);
     drawIsoBox(
       ctx,
       sx + backCoords.dx,
-      centerY + backCoords.dy - 15,
+      centerY + backCoords.dy - 12,
       11,
       5,
       3,
