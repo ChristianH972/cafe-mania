@@ -11,7 +11,7 @@ import {
   resetGameState,
   saveGameState,
 } from './engine/gameLogic';
-import { TILE_H, screenToGrid } from './engine/isoMath';
+import { TILE_H, isPlacementValid, screenToGrid } from './engine/isoMath';
 import { renderCafeScene } from './engine/isoRenderer';
 import {
   SimulationEffects,
@@ -281,8 +281,8 @@ export function App() {
 
     // 2. Placing newly bought furniture
     if (placingCatalogId) {
-      if (occupied) {
-        showToast('Este espaço já está ocupado!');
+      if (!isPlacementValid(pos.x, pos.y, s.gridSize, s.furniture)) {
+        showToast('Espaço ocupado ou bloqueando a porta!');
         return;
       }
       const cat = getCatalogItem(placingCatalogId);
@@ -333,6 +333,10 @@ export function App() {
         );
         soundEngine.playClick();
       } else if (selectedFurnitureId) {
+        if (!isPlacementValid(pos.x, pos.y, s.gridSize, s.furniture, selectedFurnitureId)) {
+          showToast('Não é possível posicionar na porta!');
+          return;
+        }
         const moving = s.furniture.find((f) => f.instanceId === selectedFurnitureId);
         if (moving) {
           moving.x = pos.x;

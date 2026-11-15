@@ -123,3 +123,18 @@ export function findBestAdjacentTile(
   );
   return candidates[0];
 }
+
+export function isPlacementValid(
+  x: number,
+  y: number,
+  gridSize: number,
+  furniture: PlacedFurniture[],
+  ignoreInstanceId?: string | null
+): boolean {
+  if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) return false;
+  const doorX = Math.floor(gridSize / 2);
+  if (x === doorX && y === 0) return false; // Keep entrance doorway clear
+  return !furniture.some(
+    (f) => f.x === x && f.y === y && f.instanceId !== ignoreInstanceId
+  );
+}

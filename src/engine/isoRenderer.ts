@@ -7,7 +7,7 @@ import {
   PlacedFurniture,
   StaffMember,
 } from '../types/game';
-import { TILE_H, TILE_W, gridToScreen } from './isoMath';
+import { TILE_H, TILE_W, gridToScreen, isPlacementValid } from './isoMath';
 
 export interface RenderParams {
   ctx: CanvasRenderingContext2D;
@@ -463,13 +463,28 @@ function drawFurnitureItem(
       shadeColor(bodyColor, -22)
     );
 
-    // Burners on top
+    // Burners on top (4 classic grates)
     const topCenterY = sy + 4 - 26 + (TILE_H * 0.78) / 2;
     ctx.fillStyle = '#222';
-    ctx.beginPath();
-    ctx.ellipse(sx - 8, topCenterY - 2, 6, 3.2, 0, 0, Math.PI * 2);
-    ctx.ellipse(sx + 8, topCenterY + 2, 6, 3.2, 0, 0, Math.PI * 2);
-    ctx.fill();
+    for (const [bx, by] of [
+      [-8, -2],
+      [8, 2],
+      [0, -6],
+      [0, 5],
+    ]) {
+      ctx.beginPath();
+      ctx.ellipse(sx + bx, topCenterY + by, 5, 2.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Control knobs on front panel
+    ctx.fillStyle = '#ecf0f1';
+    const knobSide = f.rotation % 2 === 0 ? -1 : 1;
+    for (let k = 0; k < 3; k++) {
+      ctx.beginPath();
+      ctx.arc(sx + knobSide * (6 + k * 4.5), sy - 11 + k * 2.2, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     // Oven window (flips face based on rotation)
     ctx.fillStyle = f.stove?.status === 'cooking' ? '#ff9f43' : '#2c3e50';
@@ -487,6 +502,18 @@ function drawFurnitureItem(
     }
     ctx.closePath();
     ctx.fill();
+    // Oven handle
+    ctx.strokeStyle = '#bdc3c7';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    if (f.rotation % 2 === 0) {
+      ctx.moveTo(sx - 15, sy - 7);
+      ctx.lineTo(sx - 5, sy - 2);
+    } else {
+      ctx.moveTo(sx + 15, sy - 7);
+      ctx.lineTo(sx + 5, sy - 2);
+    }
+    ctx.stroke();
 
     // Cooking pan & status
     if (f.stove && f.stove.status !== 'idle') {
@@ -554,17 +581,36 @@ function drawFurnitureItem(
       }
     }
   } else if (item.kind === 'counter') {
+    // Base cabinet
     drawIsoBox(
       ctx,
       sx,
       sy + 4,
-      TILE_W * 0.82,
-      TILE_H * 0.82,
-      24,
-      item.accentColor,
+      TILE_W * 0.8,
+      TILE_H * 0.8,
+      21,
+      item.color,
       item.color,
       shadeColor(item.color, -24)
     );
+    // Overhanging marble/wood countertop
+    drawIsoBox(
+      ctx,
+      sx,
+      sy - 17,
+      TILE_W * 0.86,
+      TILE_H * 0.86,
+      4,
+      item.accentColor,
+      shadeColor(item.accentColor, -14),
+      shadeColor(item.accentColor, -24)
+    );
+    // Cabinet handles
+    ctx.fillStyle = '#f1c40f';
+    ctx.beginPath();
+    ctx.arc(sx - 6, sy + 2, 1.5, 0, Math.PI * 2);
+    ctx.arc(sx + 6, sy + 2, 1.5, 0, Math.PI * 2);
+    ctx.fill();
 
     if (f.counter && f.counter.portions > 0 && f.counter.recipeId) {
       const recipe = getRecipeById(f.counter.recipeId);
@@ -604,27 +650,33 @@ function drawFurnitureItem(
             { dx: -16, dy: 6 },
           ];
     for (const c of chairOffsets) {
-      ctx.fillStyle = '#8d5524';
-      ctx.beginPath();
-      ctx.ellipse(sx + c.dx, sy + TILE_H / 2 + c.dy - 6, 7, 4, 0, 0, Math.PI * 2);
-      ctx.fill();
+      // Chair seat (3D) + backrest
+      drawIsoBox(ctx, sx + c.dx, sy + TILE_H / 2 + c.dy - 4, 13, 7, 4, '#a0522d', '#8d5524', '#6e3f19');
+      ctx.fillStyle = '#7b4b2a';
+      const backDx = c.dx < 0 ? -4 : 4;
+      ctx.fillRect(sx + c.dx + backDx - 1.5, sy + TILE_H / 2 + c.dy - 14, 3, 9);
     }
 
-    // Table pedestal
+    // Table pedestal & base foot
+    ctx.fillStyle = '#4a2c18';
+    ctx.beginPath();
+    ctx.ellipse(sx, sy + TILE_H / 2 + 2, 8, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = '#5c3c24';
-    ctx.fillRect(sx - 3, sy + 6, 6, 12);
+    ctx.fillRect(sx - 3, sy + 4, 6, 14);
 
-    // Tabletop
-    const topY = sy - 6;
-    drawIsoDiamond(
+    // 3D Tabletop
+    const topY = sy - 7;
+    drawIsoBox(
       ctx,
       sx,
-      topY,
+      topY + 4,
       TILE_W * 0.68,
       TILE_H * 0.68,
+      4,
       item.accentColor,
       item.color,
-      2
+      shadeColor(item.color, -20)
     );
 
     if (item.id === 'table_vip') {
@@ -643,7 +695,13 @@ function drawFurnitureItem(
       const recipe = getRecipeById(f.table.servedRecipeId);
       ctx.font = '16px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(recipe?.emoji ?? '🍽️', sx, topY + 15);
+      ctx.fillText(recipe?.emoji ?? '🍽️', sx, topY + 14);
+    } else if (!f.table?.dirty && !f.table?.occupiedByCustomerId) {
+      // Cute flower vase centerpiece on clean empty tables
+      ctx.fillStyle = '#e84393';
+      ctx.beginPath();
+      ctx.arc(sx, topY + 8, 3, 0, Math.PI * 2);
+      ctx.fill();
     } else if (f.table?.dirty) {
       // Dirty plates
       ctx.fillStyle = '#bdc3c7';
@@ -910,12 +968,18 @@ export function renderCafeScene(params: RenderParams): void {
   // Hover tile highlight
   if (hoverTile && hoverTile.x >= 0 && hoverTile.y >= 0 && hoverTile.x < gridSize && hoverTile.y < gridSize) {
     const { sx, sy } = gridToScreen(hoverTile.x, hoverTile.y, originX, originY);
-    const occupied = furniture.some((f) => f.x === hoverTile.x && f.y === hoverTile.y);
+    const valid = isPlacementValid(
+      hoverTile.x,
+      hoverTile.y,
+      gridSize,
+      furniture,
+      selectedFurnitureId
+    );
     const highlightColor =
       placingCatalogId || editMode
-        ? occupied
-          ? 'rgba(231, 76, 60, 0.45)'
-          : 'rgba(46, 204, 113, 0.45)'
+        ? valid
+          ? 'rgba(46, 204, 113, 0.45)'
+          : 'rgba(231, 76, 60, 0.45)'
         : 'rgba(255, 255, 255, 0.25)';
     drawIsoDiamond(ctx, sx, sy, TILE_W, TILE_H, highlightColor, '#ffffff', 1.5);
   }
