@@ -263,7 +263,7 @@ function drawWalls(
   // Awning / CAFÉ MANIA sign above door
   ctx.fillStyle = '#c0392b';
   ctx.beginPath();
-  ctx.roundRect(dMidX - 30, dMidY - doorH - 22, 60, 17, 6);
+  ctx.roundRect(dMidX - 30, dMidY - doorH - 28, 60, 17, 6);
   ctx.fill();
   ctx.strokeStyle = '#f1c40f';
   ctx.lineWidth = 2;
@@ -271,7 +271,7 @@ function drawWalls(
   ctx.font = 'bold 9px Fredoka, Nunito, sans-serif';
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
-  ctx.fillText('CAFÉ MANIA', dMidX, dMidY - doorH - 10);
+  ctx.fillText('CAFÉ MANIA', dMidX, dMidY - doorH - 16);
 
   // Windows on right wall flanking the door
   const windowPositions = [1.3, gridSize - 2.3].filter(
@@ -863,6 +863,27 @@ export function renderCafeScene(params: RenderParams): void {
     (c) => Math.abs(c.x - doorX) < 1.2 && c.y >= -1.6 && c.y <= 1.2
   );
 
+  // Draw customers currently outside on the sidewalk (y < -0.15) BEFORE the wall so they walk behind it
+  const outsideCustomers = customers
+    .filter((c) => c.y < -0.15)
+    .sort((a, b) => a.x + a.y - (b.x + b.y));
+  for (const c of outsideCustomers) {
+    drawCharacter(
+      ctx,
+      c.x,
+      c.y,
+      c.skinColor,
+      c.shirtColor,
+      c.hairColor,
+      originX,
+      originY,
+      c.animPhase,
+      c.path.length > 0,
+      'customer',
+      c.state === 'leaving' && c.mood === 'happy' ? '❤️' : undefined
+    );
+  }
+
   // Walls
   drawWalls(ctx, originX, originY, gridSize, wallStyleId, doorOpen);
 
@@ -920,6 +941,7 @@ export function renderCafeScene(params: RenderParams): void {
   }
 
   for (const c of customers) {
+    if (c.y < -0.15) continue;
     const recipe = getRecipeById(c.desiredRecipeId);
     let bubble: string | undefined;
     let bubbleBg = '#ffffff';
