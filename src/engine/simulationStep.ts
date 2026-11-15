@@ -182,23 +182,40 @@ function stepStoves(state: GameState, dt: number, effects: SimulationEffects): v
   }
 }
 
+function findAdjacentTable(
+  chair: PlacedFurniture,
+  furniture: PlacedFurniture[]
+): PlacedFurniture | undefined {
+  return furniture.find(
+    (f) =>
+      f.table &&
+      Math.abs(f.x - chair.x) + Math.abs(f.y - chair.y) === 1
+  );
+}
+
 function stepCustomers(state: GameState, dt: number, effects: SimulationEffects): void {
   const doorX = Math.floor(state.gridSize / 2);
   const doorY = 0;
   const hasJukebox = state.furniture.some((f) => f.catalogId === 'decor_jukebox');
 
-  // Spawn customers
+  // Spawn customers on free chairs adjacent to tables
   effects.spawnTimer -= dt;
-  const freeTables = state.furniture.filter(
-    (f) => f.table && !f.table.occupiedByCustomerId && !f.table.dirty
-  );
-  const maxCustomers = state.furniture.filter((f) => f.table).length + 1;
+  const validSeats = state.furniture
+    .filter((f) => f.chair)
+    .map((chair) => ({ chair, table: findAdjacentTable(chair, state.furniture) }))
+    .filter((pair): pair is { chair: PlacedFurniture; table: PlacedFurniture } => Boolean(pair.table));
 
-  if (effects.spawnTimer <= 0 && freeTables.length > 0 && state.customers.length < maxCustomers) {
+  const freeSeats = validSeats.filter(
+    ({ chair }) => !chair.chair!.occupiedByCustomerId && !chair.chair!.dirty
+  );
+  const maxCustomers = validSeats.length + 1;
+
+  if (effects.spawnTimer <= 0 && freeSeats.length > 0 && state.customers.length < maxCustomers) {
     const interval = Math.max(2.2, 6.0 - state.buzz * 0.035);
     effects.spawnTimer = interval;
 
-    const chosenTable = freeTables[Math.floor(Math.random() * freeTables.length)];
+    const { chair: chosenChair, table: chosenTable } =
+      freeSeats[Math.floor(Math.random() * freeSeats.length)];
     const availableCounters = state.furniture.filter(
       (f) => f.counter && f.counter.portions > 0 && f.counter.recipeId
     );
@@ -211,8 +228,7 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
     const spawnFromLeft = Math.random() < 0.5;
     const sidewalkY = -1;
     const spawnX = spawnFromLeft ? -2.5 : state.gridSize + 2.5;
-    const adjToTable = findBestAdjacentTile(doorX, doorY, chosenTable.x, chosenTable.y, state.gridSize, state.furniture);
-    const insidePath = findPath(doorX, doorY, adjToTable.x, adjToTable.y, state.gridSize, state.furniture, false);
+    const insidePath = findPath(doorX, doorY, chosenChair.x, chosenChair.y, state.gridSize, state.furniture, true);
 
     const customer: Customer = {
       id: nextId('cust'),
@@ -229,6 +245,7 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
       ],
       state: 'walking_to_seat',
       targetTableId: chosenTable.instanceId,
+      targetChairId: chosenChair.instanceId,
       desiredRecipeId: desired,
       waitTimer: hasJukebox ? 38 : 28,
       maxWaitTimer: hasJukebox ? 38 : 28,
@@ -237,7 +254,7 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
       animPhase: 0,
     };
 
-    chosenTable.table!.occupiedByCustomerId = customer.id;
+    chosenChair.chair!.occupiedByCustomerId = customer.id;
     state.customers.push(customer);
   }
 
@@ -248,10 +265,10 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
     if (c.state === 'walking_to_seat') {
       const arrived = moveAlongPath(c, dt, 2.5);
       if (arrived) {
-        const table = state.furniture.find((f) => f.instanceId === c.targetTableId);
-        if (table) {
-          c.x = table.x;
-          c.y = table.y;
+        const chair = state.furniture.find((f) => f.instanceId === c.targetChairId);
+        if (chair) {
+          c.x = chair.x;
+          c.y = chair.y;
         }
         c.state = 'waiting_food';
       }
@@ -262,9 +279,9 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
 
       if (c.waitTimer <= 0) {
         // Leave angry
-        const table = state.furniture.find((f) => f.instanceId === c.targetTableId);
-        if (table?.table) {
-          table.table.occupiedByCustomerId = null;
+        const chair = state.furniture.find((f) => f.instanceId === c.targetChairId);
+        if (chair?.chair) {
+          chair.chair.occupiedByCustomerId = null;
         }
         state.rating = Math.max(0, Math.round((state.rating - 4) * 10) / 10);
         c.state = 'leaving';
@@ -279,18 +296,19 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
     } else if (c.state === 'eating') {
       c.eatTimer -= dt;
       if (c.eatTimer <= 0) {
+        const chair = state.furniture.find((f) => f.instanceId === c.targetChairId);
         const table = state.furniture.find((f) => f.instanceId === c.targetTableId);
-        const recipe = getRecipeById(table?.table?.servedRecipeId ?? c.desiredRecipeId);
+        const recipe = getRecipeById(chair?.chair?.servedRecipeId ?? c.desiredRecipeId);
         const isVipTable = table?.catalogId === 'table_gold';
         const tip = isVipTable ? 6 : Math.floor(state.buzz / 25);
         const earned = (recipe?.sellPrice ?? 15) + tip;
         const xpEarned = recipe?.xpPerServe ?? 4;
 
-        if (table?.table) {
-          table.table.occupiedByCustomerId = null;
-          table.table.hasFood = false;
-          table.table.servedRecipeId = null;
-          table.table.dirty = true;
+        if (chair?.chair) {
+          chair.chair.occupiedByCustomerId = null;
+          chair.chair.hasFood = false;
+          chair.chair.servedRecipeId = null;
+          chair.chair.dirty = true;
         }
 
         state.stats.customersServed += 1;
@@ -393,17 +411,17 @@ function assignWaiterTask(state: GameState, waiter: StaffMember): void {
     }
   }
 
-  // Priority 2: clean dirty table
-  const dirtyTable = state.furniture.find((f) => f.table?.dirty && !f.table.occupiedByCustomerId);
-  if (dirtyTable) {
-    waiter.targetFurnitureId = dirtyTable.instanceId;
+  // Priority 2: clean dirty chair/seat
+  const dirtySeat = state.furniture.find((f) => f.chair?.dirty && !f.chair.occupiedByCustomerId);
+  if (dirtySeat) {
+    waiter.targetFurnitureId = dirtySeat.instanceId;
     waiter.taskType = 'clean';
     waiter.state = 'walking';
     const adj = findBestAdjacentTile(
       waiter.x,
       waiter.y,
-      dirtyTable.x,
-      dirtyTable.y,
+      dirtySeat.x,
+      dirtySeat.y,
       state.gridSize,
       state.furniture
     );
@@ -460,35 +478,35 @@ function handleStaffArrival(
           (c) => c.state === 'waiting_food' && c.desiredRecipeId === target.counter!.recipeId
         ) ?? state.customers.find((c) => c.state === 'waiting_food');
 
-      if (waitingCustomer && waitingCustomer.targetTableId) {
-        const table = state.furniture.find((f) => f.instanceId === waitingCustomer.targetTableId);
-        if (table) {
+      if (waitingCustomer && waitingCustomer.targetChairId) {
+        const chair = state.furniture.find((f) => f.instanceId === waitingCustomer.targetChairId);
+        if (chair) {
           target.counter.portions -= 1;
           s.carryingRecipeId = target.counter.recipeId;
           if (target.counter.portions <= 0) {
             target.counter.recipeId = null;
             target.counter.maxPortions = 0;
           }
-          s.targetFurnitureId = table.instanceId;
-          const adj = findBestAdjacentTile(s.x, s.y, table.x, table.y, state.gridSize, state.furniture);
+          s.targetFurnitureId = chair.instanceId;
+          const adj = findBestAdjacentTile(s.x, s.y, chair.x, chair.y, state.gridSize, state.furniture);
           s.path = findPath(s.x, s.y, adj.x, adj.y, state.gridSize, state.furniture, false);
           return;
         }
       }
-    } else if (s.carryingRecipeId && target?.table) {
+    } else if (s.carryingRecipeId && target?.chair) {
       const customer = state.customers.find(
-        (c) => c.targetTableId === target.instanceId && c.state === 'waiting_food'
+        (c) => c.targetChairId === target.instanceId && c.state === 'waiting_food'
       );
       if (customer) {
-        target.table.hasFood = true;
-        target.table.servedRecipeId = s.carryingRecipeId;
+        target.chair.hasFood = true;
+        target.chair.servedRecipeId = s.carryingRecipeId;
         customer.state = 'eating';
       }
       s.carryingRecipeId = null;
     }
   } else if (s.role === 'waiter' && s.taskType === 'clean') {
-    if (target?.table?.dirty && !target.table.occupiedByCustomerId) {
-      target.table.dirty = false;
+    if (target?.chair?.dirty && !target.chair.occupiedByCustomerId) {
+      target.chair.dirty = false;
       state.stats.tablesCleaned += 1;
       addXpAndCoins(state, 2, 2, effects, target.x, target.y);
       soundEngine.playClean();

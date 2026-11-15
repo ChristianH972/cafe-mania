@@ -63,6 +63,13 @@ export interface TableState {
   servedRecipeId: string | null;
 }
 
+export interface ChairState {
+  occupiedByCustomerId: string | null;
+  dirty: boolean;
+  hasFood: boolean;
+  servedRecipeId: string | null;
+}
+
 export interface PlacedFurniture {
   instanceId: string;
   catalogId: string;
@@ -72,6 +79,7 @@ export interface PlacedFurniture {
   stove?: StoveState;
   counter?: CounterState;
   table?: TableState;
+  chair?: ChairState;
 }
 
 export type CustomerState =
@@ -92,6 +100,7 @@ export interface Customer {
   path: GridPos[];
   state: CustomerState;
   targetTableId: string | null;
+  targetChairId?: string | null;
   desiredRecipeId: string | null;
   waitTimer: number;
   maxWaitTimer: number;

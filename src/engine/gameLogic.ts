@@ -55,26 +55,50 @@ export function createInitialState(): GameState {
     {
       instanceId: 'table_1',
       catalogId: 'table_wood',
-      x: 4,
+      x: 3,
       y: 3,
       rotation: 0,
       table: { occupiedByCustomerId: null, dirty: false, hasFood: false, servedRecipeId: null },
+    },
+    {
+      instanceId: 'chair_1',
+      catalogId: 'chair_wood',
+      x: 3,
+      y: 4,
+      rotation: 0,
+      chair: { occupiedByCustomerId: null, dirty: false, hasFood: false, servedRecipeId: null },
     },
     {
       instanceId: 'table_2',
       catalogId: 'table_wood',
-      x: 6,
+      x: 5,
       y: 3,
       rotation: 0,
       table: { occupiedByCustomerId: null, dirty: false, hasFood: false, servedRecipeId: null },
     },
     {
+      instanceId: 'chair_2',
+      catalogId: 'chair_wood',
+      x: 5,
+      y: 4,
+      rotation: 0,
+      chair: { occupiedByCustomerId: null, dirty: false, hasFood: false, servedRecipeId: null },
+    },
+    {
       instanceId: 'table_3',
       catalogId: 'table_wood',
-      x: 4,
+      x: 3,
       y: 5,
       rotation: 0,
       table: { occupiedByCustomerId: null, dirty: false, hasFood: false, servedRecipeId: null },
+    },
+    {
+      instanceId: 'chair_3',
+      catalogId: 'chair_wood',
+      x: 4,
+      y: 5,
+      rotation: 0,
+      chair: { occupiedByCustomerId: null, dirty: false, hasFood: false, servedRecipeId: null },
     },
     {
       instanceId: 'decor_1',
@@ -235,6 +259,44 @@ export function loadGameState(): { state: GameState; offlineReport: OfflineRepor
     const parsed = JSON.parse(raw) as GameState;
     if (!parsed || !Array.isArray(parsed.furniture)) return null;
     if (typeof parsed.rating !== 'number') parsed.rating = 78;
+
+    // Migrate legacy saves without separate chairs to 1x1 table + chair
+    const hasAnyChair = parsed.furniture.some((f) => f.chair);
+    if (!hasAnyChair) {
+      let idx = 1;
+      const occupied = new Set(parsed.furniture.map((f) => `${f.x},${f.y}`));
+      const tables = parsed.furniture.filter((f) => f.table);
+      for (const tbl of tables) {
+        tbl.table!.occupiedByCustomerId = null;
+        const dirs = [
+          { x: tbl.x, y: tbl.y + 1 },
+          { x: tbl.x + 1, y: tbl.y },
+          { x: tbl.x - 1, y: tbl.y },
+          { x: tbl.x, y: tbl.y - 1 },
+        ];
+        const spot = dirs.find(
+          (d) =>
+            d.x >= 0 &&
+            d.y >= 0 &&
+            d.x < parsed.gridSize &&
+            d.y < parsed.gridSize &&
+            !occupied.has(`${d.x},${d.y}`)
+        );
+        if (spot) {
+          occupied.add(`${spot.x},${spot.y}`);
+          parsed.furniture.push({
+            instanceId: `migrated_chair_${idx++}`,
+            catalogId: 'chair_wood',
+            x: spot.x,
+            y: spot.y,
+            rotation: 0,
+            chair: { occupiedByCustomerId: null, dirty: false, hasFood: false, servedRecipeId: null },
+          });
+        }
+      }
+      parsed.customers = [];
+    }
+
     const offlineReport = simulateOfflineProgress(parsed, Date.now());
     return { state: parsed, offlineReport };
   } catch {

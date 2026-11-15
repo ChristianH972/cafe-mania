@@ -638,41 +638,22 @@ function drawFurnitureItem(
       ctx.fillText(`${f.counter.portions}`, sx + 19, topY - 8);
     }
   } else if (item.kind === 'table') {
-    // Two cute chairs flanking the table (rotates with f.rotation)
-    const chairOffsets =
-      f.rotation % 2 === 0
-        ? [
-            { dx: -16, dy: -6 },
-            { dx: 16, dy: 6 },
-          ]
-        : [
-            { dx: 16, dy: -6 },
-            { dx: -16, dy: 6 },
-          ];
-    for (const c of chairOffsets) {
-      // Chair seat (3D) + backrest
-      drawIsoBox(ctx, sx + c.dx, sy + TILE_H / 2 + c.dy - 4, 13, 7, 4, '#a0522d', '#8d5524', '#6e3f19');
-      ctx.fillStyle = '#7b4b2a';
-      const backDx = c.dx < 0 ? -4 : 4;
-      ctx.fillRect(sx + c.dx + backDx - 1.5, sy + TILE_H / 2 + c.dy - 14, 3, 9);
-    }
-
-    // Table pedestal & base foot
+    // 1x1 Table pedestal & base foot (no embedded chairs!)
     ctx.fillStyle = '#4a2c18';
     ctx.beginPath();
-    ctx.ellipse(sx, sy + TILE_H / 2 + 2, 8, 4, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx, sy + TILE_H / 2 + 2, 9, 4.5, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#5c3c24';
-    ctx.fillRect(sx - 3, sy + 4, 6, 14);
+    ctx.fillRect(sx - 3.5, sy + 4, 7, 14);
 
-    // 3D Tabletop
+    // 3D Tabletop filling 1x1 tile so adjacent tables connect seamlessly
     const topY = sy - 7;
     drawIsoBox(
       ctx,
       sx,
       topY + 4,
-      TILE_W * 0.68,
-      TILE_H * 0.68,
+      TILE_W * 0.88,
+      TILE_H * 0.88,
       4,
       item.accentColor,
       item.color,
@@ -680,43 +661,73 @@ function drawFurnitureItem(
     );
 
     if (item.id === 'table_vip') {
-      // Checkered center accent
       drawIsoDiamond(
         ctx,
         sx,
         topY + 4,
-        TILE_W * 0.34,
-        TILE_H * 0.34,
+        TILE_W * 0.44,
+        TILE_H * 0.44,
         '#e74c3c'
       );
     }
+  } else if (item.kind === 'chair') {
+    // 1x1 Isometric Chair
+    const legColor = '#5c3c24';
+    ctx.strokeStyle = legColor;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(sx - 7, sy + TILE_H / 2 - 2);
+    ctx.lineTo(sx - 7, sy + TILE_H / 2 + 5);
+    ctx.moveTo(sx + 7, sy + TILE_H / 2 - 2);
+    ctx.lineTo(sx + 7, sy + TILE_H / 2 + 5);
+    ctx.stroke();
 
-    if (f.table?.hasFood && f.table.servedRecipeId) {
-      const recipe = getRecipeById(f.table.servedRecipeId);
-      ctx.font = '16px sans-serif';
+    // Seat cushion
+    drawIsoBox(
+      ctx,
+      sx,
+      sy + TILE_H / 2 - 1,
+      24,
+      13,
+      5,
+      item.accentColor,
+      item.color,
+      shadeColor(item.color, -20)
+    );
+
+    // Backrest (rotates with f.rotation)
+    const backOffset = f.rotation % 2 === 0 ? -9 : 9;
+    drawIsoBox(
+      ctx,
+      sx + backOffset,
+      sy + TILE_H / 2 - 7,
+      8,
+      6,
+      14,
+      item.color,
+      item.color,
+      shadeColor(item.color, -20)
+    );
+
+    if (f.chair?.hasFood && f.chair.servedRecipeId) {
+      const recipe = getRecipeById(f.chair.servedRecipeId);
+      ctx.font = '15px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(recipe?.emoji ?? '🍽️', sx, topY + 14);
-    } else if (!f.table?.dirty && !f.table?.occupiedByCustomerId) {
-      // Cute flower vase centerpiece on clean empty tables
-      ctx.fillStyle = '#e84393';
-      ctx.beginPath();
-      ctx.arc(sx, topY + 8, 3, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (f.table?.dirty) {
-      // Dirty plates
+      ctx.fillText(recipe?.emoji ?? '🍽️', sx, sy - 6);
+    } else if (f.chair?.dirty) {
       ctx.fillStyle = '#bdc3c7';
       ctx.beginPath();
-      ctx.ellipse(sx - 4, topY + 12, 7, 4, 0, 0, Math.PI * 2);
+      ctx.ellipse(sx, sy + 2, 6, 3.5, 0, 0, Math.PI * 2);
       ctx.fill();
       const pulse = Math.sin(timeSec * 6) * 2;
       ctx.fillStyle = '#f39c12';
       ctx.beginPath();
-      ctx.roundRect(sx - 20, topY - 18 + pulse, 40, 17, 8);
+      ctx.roundRect(sx - 20, sy - 22 + pulse, 40, 17, 8);
       ctx.fill();
       ctx.font = 'bold 10px Nunito, sans-serif';
       ctx.fillStyle = '#fff';
       ctx.textAlign = 'center';
-      ctx.fillText('🧹 LIMPAR', sx, topY - 6 + pulse);
+      ctx.fillText('🧹 LIMPAR', sx, sy - 10 + pulse);
     }
   } else if (item.kind === 'decor') {
     if (item.id === 'decor_plant') {
@@ -1019,28 +1030,13 @@ export function renderCafeScene(params: RenderParams): void {
       bubble = '❤️';
     }
 
-    // Offset seated customers onto the chair beside the table
-    let drawX = c.x;
-    let drawY = c.y;
-    if (c.state === 'waiting_food' || c.state === 'eating') {
-      const tbl = furniture.find((f) => f.instanceId === c.targetTableId);
-      const rot = tbl?.rotation ?? 0;
-      if (rot % 2 === 0) {
-        drawX -= 0.38;
-        drawY += 0.1;
-      } else {
-        drawX += 0.1;
-        drawY -= 0.38;
-      }
-    }
-
     drawables.push({
-      depth: drawX + drawY + 0.16,
+      depth: c.x + c.y + 0.16,
       draw: () =>
         drawCharacter(
           ctx,
-          drawX,
-          drawY,
+          c.x,
+          c.y,
           c.skinColor,
           c.shirtColor,
           c.hairColor,

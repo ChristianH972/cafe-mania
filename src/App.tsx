@@ -312,6 +312,13 @@ export function App() {
           hasFood: false,
           servedRecipeId: null,
         };
+      } else if (cat.kind === 'chair') {
+        newFurn.chair = {
+          occupiedByCustomerId: null,
+          dirty: false,
+          hasFood: false,
+          servedRecipeId: null,
+        };
       }
 
       s.furniture.push(newFurn);
@@ -379,6 +386,12 @@ export function App() {
         setUiState({ ...s });
         showToast('Fogão limpo!');
       }
+    } else if (occupied.chair?.dirty && !occupied.chair.occupiedByCustomerId) {
+      occupied.chair.dirty = false;
+      s.stats.tablesCleaned += 1;
+      addXpAndCoins(s, 2, 2, effectsRef.current, occupied.x, occupied.y);
+      soundEngine.playClean();
+      setUiState({ ...s });
     } else if (occupied.table?.dirty && !occupied.table.occupiedByCustomerId) {
       occupied.table.dirty = false;
       s.stats.tablesCleaned += 1;
