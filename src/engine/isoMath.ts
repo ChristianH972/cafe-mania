@@ -91,3 +91,35 @@ export function findPath(
   // Fallback direct step if path is blocked
   return [{ x: gx, y: gy }];
 }
+
+export function findBestAdjacentTile(
+  fromX: number,
+  fromY: number,
+  targetX: number,
+  targetY: number,
+  gridSize: number,
+  furniture: PlacedFurniture[]
+): GridPos {
+  const blocked = new Set<string>(furniture.map((f) => `${f.x},${f.y}`));
+  const candidates = [
+    { x: targetX + 1, y: targetY },
+    { x: targetX, y: targetY + 1 },
+    { x: targetX - 1, y: targetY },
+    { x: targetX, y: targetY - 1 },
+  ].filter(
+    (p) =>
+      p.x >= 0 &&
+      p.y >= 0 &&
+      p.x < gridSize &&
+      p.y < gridSize &&
+      !blocked.has(`${p.x},${p.y}`)
+  );
+
+  if (candidates.length === 0) return { x: targetX, y: targetY };
+
+  candidates.sort(
+    (a, b) =>
+      Math.hypot(a.x - fromX, a.y - fromY) - Math.hypot(b.x - fromX, b.y - fromY)
+  );
+  return candidates[0];
+}

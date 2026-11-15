@@ -10,7 +10,7 @@ import {
   StaffMember,
 } from '../types/game';
 import { xpForNextLevel } from './gameLogic';
-import { findPath } from './isoMath';
+import { findBestAdjacentTile, findPath } from './isoMath';
 
 const CUSTOMER_NAMES = [
   'Lucas', 'Mariana', 'Pedro', 'Camila', 'Rafael', 'Beatriz', 'Thiago', 'Larissa', 'Bruno', 'Amanda',
@@ -183,8 +183,8 @@ function stepStoves(state: GameState, dt: number, effects: SimulationEffects): v
 }
 
 function stepCustomers(state: GameState, dt: number, effects: SimulationEffects): void {
-  const doorX = state.gridSize - 1;
-  const doorY = Math.floor(state.gridSize / 2);
+  const doorX = Math.floor(state.gridSize / 2);
+  const doorY = 0;
   const hasJukebox = state.furniture.some((f) => f.catalogId === 'decor_jukebox');
 
   // Spawn customers
@@ -208,10 +208,11 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
         ? availableCounters[Math.floor(Math.random() * availableCounters.length)].counter!.recipeId
         : unlocked[Math.floor(Math.random() * unlocked.length)].id;
 
-    const spawnFromTop = Math.random() < 0.5;
-    const sidewalkX = state.gridSize + 0.15;
-    const spawnY = spawnFromTop ? -2.5 : state.gridSize + 2.5;
-    const insidePath = findPath(doorX, doorY, chosenTable.x, chosenTable.y, state.gridSize, state.furniture, true);
+    const spawnFromLeft = Math.random() < 0.5;
+    const sidewalkY = -1;
+    const spawnX = spawnFromLeft ? -2.5 : state.gridSize + 2.5;
+    const adjToTable = findBestAdjacentTile(doorX, doorY, chosenTable.x, chosenTable.y, state.gridSize, state.furniture);
+    const insidePath = findPath(doorX, doorY, adjToTable.x, adjToTable.y, state.gridSize, state.furniture, false);
 
     const customer: Customer = {
       id: nextId('cust'),
@@ -219,10 +220,10 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
       skinColor: SKIN_TONES[Math.floor(Math.random() * SKIN_TONES.length)],
       hairColor: HAIR_COLORS[Math.floor(Math.random() * HAIR_COLORS.length)],
       shirtColor: SHIRT_COLORS[Math.floor(Math.random() * SHIRT_COLORS.length)],
-      x: sidewalkX,
-      y: spawnY,
+      x: spawnX,
+      y: sidewalkY,
       path: [
-        { x: sidewalkX, y: doorY },
+        { x: doorX, y: sidewalkY },
         { x: doorX, y: doorY },
         ...insidePath,
       ],
@@ -247,6 +248,11 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
     if (c.state === 'walking_to_seat') {
       const arrived = moveAlongPath(c, dt, 2.5);
       if (arrived) {
+        const table = state.furniture.find((f) => f.instanceId === c.targetTableId);
+        if (table) {
+          c.x = table.x;
+          c.y = table.y;
+        }
         c.state = 'waiting_food';
       }
     } else if (c.state === 'waiting_food') {
@@ -263,11 +269,11 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
         state.rating = Math.max(0, Math.round((state.rating - 4) * 10) / 10);
         c.state = 'leaving';
         c.mood = 'angry';
-        const exitY = Math.random() < 0.5 ? -2.5 : state.gridSize + 2.5;
+        const exitX = Math.random() < 0.5 ? -2.5 : state.gridSize + 2.5;
         c.path = [
           ...findPath(c.x, c.y, doorX, doorY, state.gridSize, state.furniture, true),
-          { x: state.gridSize + 0.15, y: doorY },
-          { x: state.gridSize + 0.15, y: exitY },
+          { x: doorX, y: -1 },
+          { x: exitX, y: -1 },
         ];
       }
     } else if (c.state === 'eating') {
@@ -294,11 +300,11 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
 
         c.state = 'leaving';
         c.mood = 'happy';
-        const exitY = Math.random() < 0.5 ? -2.5 : state.gridSize + 2.5;
+        const exitX = Math.random() < 0.5 ? -2.5 : state.gridSize + 2.5;
         c.path = [
           ...findPath(c.x, c.y, doorX, doorY, state.gridSize, state.furniture, true),
-          { x: state.gridSize + 0.15, y: doorY },
-          { x: state.gridSize + 0.15, y: exitY },
+          { x: doorX, y: -1 },
+          { x: exitX, y: -1 },
         ];
       }
     } else if (c.state === 'leaving') {
@@ -349,7 +355,8 @@ function assignChefTask(state: GameState, chef: StaffMember): void {
   chef.targetFurnitureId = readyStove.instanceId;
   chef.taskType = 'stock';
   chef.state = 'walking';
-  chef.path = findPath(chef.x, chef.y, readyStove.x, readyStove.y, state.gridSize, state.furniture, true);
+  const adj = findBestAdjacentTile(chef.x, chef.y, readyStove.x, readyStove.y, state.gridSize, state.furniture);
+  chef.path = findPath(chef.x, chef.y, adj.x, adj.y, state.gridSize, state.furniture, false);
 }
 
 function assignWaiterTask(state: GameState, waiter: StaffMember): void {
@@ -365,14 +372,22 @@ function assignWaiterTask(state: GameState, waiter: StaffMember): void {
       waiter.targetFurnitureId = matchingCounter.instanceId;
       waiter.taskType = 'serve';
       waiter.state = 'walking';
-      waiter.path = findPath(
+      const adj = findBestAdjacentTile(
         waiter.x,
         waiter.y,
         matchingCounter.x,
         matchingCounter.y,
         state.gridSize,
+        state.furniture
+      );
+      waiter.path = findPath(
+        waiter.x,
+        waiter.y,
+        adj.x,
+        adj.y,
+        state.gridSize,
         state.furniture,
-        true
+        false
       );
       return;
     }
@@ -384,7 +399,15 @@ function assignWaiterTask(state: GameState, waiter: StaffMember): void {
     waiter.targetFurnitureId = dirtyTable.instanceId;
     waiter.taskType = 'clean';
     waiter.state = 'walking';
-    waiter.path = findPath(waiter.x, waiter.y, dirtyTable.x, dirtyTable.y, state.gridSize, state.furniture, true);
+    const adj = findBestAdjacentTile(
+      waiter.x,
+      waiter.y,
+      dirtyTable.x,
+      dirtyTable.y,
+      state.gridSize,
+      state.furniture
+    );
+    waiter.path = findPath(waiter.x, waiter.y, adj.x, adj.y, state.gridSize, state.furniture, false);
   }
 }
 
@@ -416,7 +439,8 @@ function handleStaffArrival(
       if (counter) {
         s.carryingRecipeId = recipeId;
         s.targetFurnitureId = counter.instanceId;
-        s.path = findPath(s.x, s.y, counter.x, counter.y, state.gridSize, state.furniture, true);
+        const adj = findBestAdjacentTile(s.x, s.y, counter.x, counter.y, state.gridSize, state.furniture);
+        s.path = findPath(s.x, s.y, adj.x, adj.y, state.gridSize, state.furniture, false);
         return;
       }
     } else if (s.carryingRecipeId && target?.counter) {
@@ -446,7 +470,8 @@ function handleStaffArrival(
             target.counter.maxPortions = 0;
           }
           s.targetFurnitureId = table.instanceId;
-          s.path = findPath(s.x, s.y, table.x, table.y, state.gridSize, state.furniture, true);
+          const adj = findBestAdjacentTile(s.x, s.y, table.x, table.y, state.gridSize, state.furniture);
+          s.path = findPath(s.x, s.y, adj.x, adj.y, state.gridSize, state.furniture, false);
           return;
         }
       }

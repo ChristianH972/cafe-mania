@@ -115,10 +115,13 @@ function drawWalls(
   originX: number,
   originY: number,
   gridSize: number,
-  wallStyleId: string
+  wallStyleId: string,
+  doorOpen: boolean
 ) {
   const wallStyle = WALL_STYLES.find((w) => w.id === wallStyleId) ?? WALL_STYLES[0];
   const wallH = 84;
+  const doorX = Math.floor(gridSize / 2);
+  const doorH = 56;
 
   // Left back wall (along x = 0, y from 0 to gridSize)
   const topLeft = gridToScreen(0, 0, originX, originY);
@@ -145,32 +148,136 @@ function drawWalls(
   ctx.fillStyle = wallStyle.secondary;
   ctx.fill();
 
-  // Right back wall (along y = 0, x from 0 to gridSize)
+  // Right back wall (along y = 0) split around doorway [doorX, doorX + 1]
+  const rightWallColor = shadeColor(
+    wallStyle.primary.startsWith('#') ? wallStyle.primary : '#fbe6c2',
+    -10
+  );
+  const dLeft = gridToScreen(doorX, 0, originX, originY);
+  const dRight = gridToScreen(doorX + 1, 0, originX, originY);
   const botRight = gridToScreen(gridSize, 0, originX, originY);
+
+  // Segment 1: 0 -> doorX
   ctx.beginPath();
   ctx.moveTo(topLeft.sx, topLeft.sy - wallH);
-  ctx.lineTo(botRight.sx, botRight.sy - wallH);
-  ctx.lineTo(botRight.sx, botRight.sy);
+  ctx.lineTo(dLeft.sx, dLeft.sy - wallH);
+  ctx.lineTo(dLeft.sx, dLeft.sy);
   ctx.lineTo(topLeft.sx, topLeft.sy);
   ctx.closePath();
-  ctx.fillStyle = shadeColor(wallStyle.primary.startsWith('#') ? wallStyle.primary : '#fbe6c2', -10);
+  ctx.fillStyle = rightWallColor;
   ctx.fill();
   ctx.strokeStyle = 'rgba(80,40,15,0.25)';
   ctx.stroke();
 
-  // Right wall trim
+  // Segment 2: doorX + 1 -> gridSize
   ctx.beginPath();
-  ctx.moveTo(topLeft.sx, topLeft.sy - 12);
-  ctx.lineTo(botRight.sx, botRight.sy - 12);
+  ctx.moveTo(dRight.sx, dRight.sy - wallH);
+  ctx.lineTo(botRight.sx, botRight.sy - wallH);
   ctx.lineTo(botRight.sx, botRight.sy);
-  ctx.lineTo(topLeft.sx, topLeft.sy);
+  ctx.lineTo(dRight.sx, dRight.sy);
   ctx.closePath();
-  ctx.fillStyle = wallStyle.secondary;
+  ctx.fillStyle = rightWallColor;
   ctx.fill();
+  ctx.stroke();
 
-  // Cute windows on right wall with mullions & curtains
-  for (const wx of [2.2, Math.min(gridSize - 2, 5.5)]) {
-    if (wx + 1.4 >= gridSize) continue;
+  // Lintel above doorway
+  ctx.beginPath();
+  ctx.moveTo(dLeft.sx, dLeft.sy - wallH);
+  ctx.lineTo(dRight.sx, dRight.sy - wallH);
+  ctx.lineTo(dRight.sx, dRight.sy - doorH);
+  ctx.lineTo(dLeft.sx, dLeft.sy - doorH);
+  ctx.closePath();
+  ctx.fillStyle = rightWallColor;
+  ctx.fill();
+  ctx.stroke();
+
+  // Right wall trim (segments)
+  for (const [a, b] of [
+    [topLeft, dLeft],
+    [dRight, botRight],
+  ]) {
+    ctx.beginPath();
+    ctx.moveTo(a.sx, a.sy - 12);
+    ctx.lineTo(b.sx, b.sy - 12);
+    ctx.lineTo(b.sx, b.sy);
+    ctx.lineTo(a.sx, a.sy);
+    ctx.closePath();
+    ctx.fillStyle = wallStyle.secondary;
+    ctx.fill();
+  }
+
+  // Door frame
+  ctx.strokeStyle = '#5c3317';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(dLeft.sx, dLeft.sy);
+  ctx.lineTo(dLeft.sx, dLeft.sy - doorH);
+  ctx.lineTo(dRight.sx, dRight.sy - doorH);
+  ctx.lineTo(dRight.sx, dRight.sy);
+  ctx.stroke();
+
+  // Animated glass double doors
+  const dMidX = (dLeft.sx + dRight.sx) / 2;
+  const dMidY = (dLeft.sy + dRight.sy) / 2;
+  ctx.fillStyle = 'rgba(170, 230, 255, 0.55)';
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1.5;
+
+  if (!doorOpen) {
+    // Closed double glass doors
+    ctx.beginPath();
+    ctx.moveTo(dLeft.sx + 2, dLeft.sy - 2);
+    ctx.lineTo(dLeft.sx + 2, dLeft.sy - doorH + 2);
+    ctx.lineTo(dRight.sx - 2, dRight.sy - doorH + 2);
+    ctx.lineTo(dRight.sx - 2, dRight.sy - 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Center divider
+    ctx.beginPath();
+    ctx.moveTo(dMidX, dMidY);
+    ctx.lineTo(dMidX, dMidY - doorH);
+    ctx.stroke();
+  } else {
+    // Swung open inward!
+    ctx.beginPath();
+    ctx.moveTo(dLeft.sx, dLeft.sy);
+    ctx.lineTo(dLeft.sx, dLeft.sy - doorH);
+    ctx.lineTo(dLeft.sx - 11, dLeft.sy - doorH + 8);
+    ctx.lineTo(dLeft.sx - 11, dLeft.sy + 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(dRight.sx, dRight.sy);
+    ctx.lineTo(dRight.sx, dRight.sy - doorH);
+    ctx.lineTo(dRight.sx - 11, dRight.sy - doorH + 8);
+    ctx.lineTo(dRight.sx - 11, dRight.sy + 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Awning / CAFÉ MANIA sign above door
+  ctx.fillStyle = '#c0392b';
+  ctx.beginPath();
+  ctx.roundRect(dMidX - 30, dMidY - doorH - 22, 60, 17, 6);
+  ctx.fill();
+  ctx.strokeStyle = '#f1c40f';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.font = 'bold 9px Fredoka, Nunito, sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.fillText('CAFÉ MANIA', dMidX, dMidY - doorH - 10);
+
+  // Windows on right wall flanking the door
+  const windowPositions = [1.3, gridSize - 2.3].filter(
+    (wx) => wx >= 0.5 && wx + 1.4 <= gridSize && (wx + 1.4 <= doorX - 0.2 || wx >= doorX + 1.2)
+  );
+  for (const wx of windowPositions) {
     const p1 = gridToScreen(wx, 0, originX, originY);
     const p2 = gridToScreen(wx + 1.4, 0, originX, originY);
     ctx.beginPath();
@@ -185,7 +292,6 @@ function drawWalls(
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    // Window cross-pane
     const midX = (p1.sx + p2.sx) / 2;
     const midY = (p1.sy + p2.sy) / 2;
     ctx.beginPath();
@@ -197,8 +303,8 @@ function drawWalls(
   }
 
   // Menu blackboard on left wall with chalk lines
-  const m1 = gridToScreen(0, 2.5, originX, originY);
-  const m2 = gridToScreen(0, 4.7, originX, originY);
+  const m1 = gridToScreen(0, 2.2, originX, originY);
+  const m2 = gridToScreen(0, 4.4, originX, originY);
   ctx.beginPath();
   ctx.moveTo(m1.sx, m1.sy - 64);
   ctx.lineTo(m2.sx, m2.sy - 64);
@@ -211,7 +317,6 @@ function drawWalls(
   ctx.lineWidth = 2.5;
   ctx.stroke();
 
-  // Chalk writing lines
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
   ctx.lineWidth = 1.5;
   for (const offset of [54, 46, 38]) {
@@ -229,9 +334,11 @@ function drawExterior(
   gridSize: number,
   timeSec: number
 ) {
+  const doorX = Math.floor(gridSize / 2);
+
   // Extended neighborhood grass around the café
-  for (let gx = -4; gx <= gridSize + 5; gx++) {
-    for (let gy = -6; gy <= gridSize + 6; gy++) {
+  for (let gx = -6; gx <= gridSize + 6; gx++) {
+    for (let gy = -6; gy <= gridSize + 4; gy++) {
       if (gx >= 0 && gx < gridSize && gy >= 0 && gy < gridSize) continue;
       const gPos = gridToScreen(gx, gy, originX, originY);
       const isAlt = (gx + gy) % 2 === 0;
@@ -246,39 +353,32 @@ function drawExterior(
     }
   }
 
-  // Long front-right sidewalk (where customers walk in from the street!)
-  for (let i = -6; i <= gridSize + 6; i++) {
-    const sw1 = gridToScreen(gridSize, i, originX, originY);
-    const tone = i % 2 === 0 ? '#e5e9f0' : '#d8dee9';
-    drawIsoDiamond(ctx, sw1.sx, sw1.sy, TILE_W, TILE_H, tone, 'rgba(0,0,0,0.08)', 1);
+  // Top-right sidewalk along y = -1 (where customers walk in from!)
+  for (let ix = -6; ix <= gridSize + 6; ix++) {
+    const sw = gridToScreen(ix, -1, originX, originY);
+    const tone = ix % 2 === 0 ? '#e5e9f0' : '#d8dee9';
+    drawIsoDiamond(ctx, sw.sx, sw.sy, TILE_W, TILE_H, tone, 'rgba(0,0,0,0.08)', 1);
   }
 
-  // Front-left sidewalk
-  for (let i = -3; i < gridSize; i++) {
-    const sw2 = gridToScreen(i, gridSize, originX, originY);
-    const tone = i % 2 === 0 ? '#e5e9f0' : '#d8dee9';
-    drawIsoDiamond(ctx, sw2.sx, sw2.sy, TILE_W, TILE_H, tone, 'rgba(0,0,0,0.08)', 1);
-  }
-
-  // Asphalt avenue outside front-right sidewalk
-  for (let i = -6; i <= gridSize + 6; i++) {
-    for (let rx = gridSize + 1; rx <= gridSize + 3; rx++) {
-      const road = gridToScreen(rx, i, originX, originY);
+  // Asphalt avenue along y = -2, -3, -4
+  for (let ix = -6; ix <= gridSize + 6; ix++) {
+    for (let ry = -4; ry <= -2; ry++) {
+      const road = gridToScreen(ix, ry, originX, originY);
       drawIsoDiamond(ctx, road.sx, road.sy, TILE_W, TILE_H, '#4b525c', 'rgba(255,255,255,0.02)', 1);
     }
   }
 
-  // Opposite sidewalk across the street
-  for (let i = -6; i <= gridSize + 6; i++) {
-    const opp = gridToScreen(gridSize + 4, i, originX, originY);
-    const tone = i % 2 === 0 ? '#dfe4ea' : '#ced6e0';
+  // Opposite sidewalk across the street at y = -5
+  for (let ix = -6; ix <= gridSize + 6; ix++) {
+    const opp = gridToScreen(ix, -5, originX, originY);
+    const tone = ix % 2 === 0 ? '#dfe4ea' : '#ced6e0';
     drawIsoDiamond(ctx, opp.sx, opp.sy, TILE_W, TILE_H, tone, 'rgba(0,0,0,0.08)', 1);
   }
 
-  // Yellow dashed road divider
-  for (let i = -5; i <= gridSize + 5; i += 2) {
-    const d1 = gridToScreen(gridSize + 2.45, i + 0.15, originX, originY);
-    const d2 = gridToScreen(gridSize + 2.45, i + 1.05, originX, originY);
+  // Yellow dashed road divider along y = -2.5
+  for (let ix = -5; ix <= gridSize + 5; ix += 2) {
+    const d1 = gridToScreen(ix + 0.15, -2.55, originX, originY);
+    const d2 = gridToScreen(ix + 1.05, -2.55, originX, originY);
     ctx.strokeStyle = '#f1c40f';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
@@ -287,27 +387,26 @@ function drawExterior(
     ctx.stroke();
   }
 
-  // White crosswalk stripes near entrance
-  const doorY = Math.floor(gridSize / 2);
+  // White crosswalk stripes in front of the door
   for (let lane = 0; lane < 3; lane++) {
-    const cw = gridToScreen(gridSize + 1.2 + lane * 0.85, doorY + 1, originX, originY);
-    drawIsoDiamond(ctx, cw.sx, cw.sy + 5, TILE_W * 0.48, TILE_H * 0.24, '#ecf0f1');
+    const cw = gridToScreen(doorX + 0.5, -2 - lane * 0.85, originX, originY);
+    drawIsoDiamond(ctx, cw.sx, cw.sy + 5, TILE_W * 0.24, TILE_H * 0.48, '#ecf0f1');
   }
 
-  // Animated 2010 cartoon cars driving on the avenue
-  const car1Y = ((timeSec * 1.8) % (gridSize + 12)) - 6;
-  const car1Pos = gridToScreen(gridSize + 1.5, car1Y, originX, originY);
+  // Animated 2010 cartoon cars driving along the avenue
+  const car1X = ((timeSec * 1.9) % (gridSize + 12)) - 6;
+  const car1Pos = gridToScreen(car1X, -2.15, originX, originY);
   drawIsoBox(ctx, car1Pos.sx, car1Pos.sy + 2, 34, 18, 12, '#e74c3c', '#c0392b', '#962d22');
   drawIsoBox(ctx, car1Pos.sx, car1Pos.sy - 9, 22, 12, 8, '#dff9fb', '#95afc0', '#7f8fa6');
 
-  const car2Y = gridSize + 6 - ((timeSec * 1.4 + 5) % (gridSize + 12));
-  const car2Pos = gridToScreen(gridSize + 2.9, car2Y, originX, originY);
+  const car2X = gridSize + 6 - ((timeSec * 1.45 + 5) % (gridSize + 12));
+  const car2Pos = gridToScreen(car2X, -3.55, originX, originY);
   drawIsoBox(ctx, car2Pos.sx, car2Pos.sy + 2, 34, 18, 12, '#3498db', '#2980b9', '#1f618d');
   drawIsoBox(ctx, car2Pos.sx, car2Pos.sy - 9, 22, 12, 8, '#dff9fb', '#95afc0', '#7f8fa6');
 
-  // Street lamps along the sidewalk
-  for (const ly of [0, gridSize - 1]) {
-    const lamp = gridToScreen(gridSize + 0.65, ly, originX, originY);
+  // Street lamps & trees along opposite sidewalk (y = -5.3) and café sidewalk (y = -1.2)
+  for (const lx of [1, gridSize - 1]) {
+    const lamp = gridToScreen(lx, -1.25, originX, originY);
     ctx.fillStyle = '#2c3e50';
     ctx.fillRect(lamp.sx - 2, lamp.sy - 36, 4, 42);
     ctx.fillStyle = '#ffeaa7';
@@ -319,9 +418,8 @@ function drawExterior(
     ctx.stroke();
   }
 
-  // Cute outdoor trees on the front-left sidewalk
-  for (const ty of [1, gridSize - 1]) {
-    const tPos = gridToScreen(ty, gridSize + 0.35, originX, originY);
+  for (const tx of [0, gridSize - 1, gridSize + 2]) {
+    const tPos = gridToScreen(tx, -5.3, originX, originY);
     ctx.fillStyle = '#7b4b2a';
     ctx.fillRect(tPos.sx - 4, tPos.sy - 8, 8, 22);
     ctx.fillStyle = '#27ae60';
@@ -331,20 +429,6 @@ function drawExterior(
     ctx.arc(tPos.sx + 10, tPos.sy - 13, 12, 0, Math.PI * 2);
     ctx.fill();
   }
-
-  // Café Mania Awning / Entrance Sign above door
-  const doorPos = gridToScreen(gridSize - 0.1, doorY, originX, originY);
-  ctx.fillStyle = '#c0392b';
-  ctx.beginPath();
-  ctx.roundRect(doorPos.sx - 28, doorPos.sy - 38, 56, 18, 6);
-  ctx.fill();
-  ctx.strokeStyle = '#f1c40f';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.font = 'bold 9px Fredoka, Nunito, sans-serif';
-  ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'center';
-  ctx.fillText('CAFÉ MANIA', doorPos.sx, doorPos.sy - 26);
 }
 
 function drawFurnitureItem(
@@ -773,8 +857,14 @@ export function renderCafeScene(params: RenderParams): void {
   ctx.closePath();
   ctx.fill();
 
+  // Check if any customer is near the doorway to swing doors open
+  const doorX = Math.floor(gridSize / 2);
+  const doorOpen = customers.some(
+    (c) => Math.abs(c.x - doorX) < 1.2 && c.y >= -1.6 && c.y <= 1.2
+  );
+
   // Walls
-  drawWalls(ctx, originX, originY, gridSize, wallStyleId);
+  drawWalls(ctx, originX, originY, gridSize, wallStyleId, doorOpen);
 
   // Floor tiles
   const floorStyle = FLOOR_STYLES.find((f) => f.id === floorStyleId) ?? FLOOR_STYLES[0];
@@ -788,9 +878,8 @@ export function renderCafeScene(params: RenderParams): void {
     }
   }
 
-  // Welcome door mat at (gridSize - 1, floor(gridSize / 2))
-  const doorY = Math.floor(gridSize / 2);
-  const doorPos = gridToScreen(gridSize - 1, doorY, originX, originY);
+  // Welcome door mat inside the entrance at (doorX, 0)
+  const doorPos = gridToScreen(doorX, 0, originX, originY);
   drawIsoDiamond(ctx, doorPos.sx, doorPos.sy + 3, TILE_W * 0.72, TILE_H * 0.72, '#c0392b', '#f1c40f', 2);
   ctx.font = 'bold 9px Nunito, sans-serif';
   ctx.fillStyle = '#fff8ee';
