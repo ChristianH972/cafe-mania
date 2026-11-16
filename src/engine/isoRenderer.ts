@@ -421,6 +421,38 @@ function drawWalls(
   // Menu blackboard on left wall with 3D frame, chalk text & eraser ledge
   const m1 = gridToScreen(0, 2.2, originX, originY);
   const m2 = gridToScreen(0, 4.4, originX, originY);
+
+  // Decorative framed flower paintings flanking the blackboard (classic 2010 style)
+  for (const py of [0.75, Math.max(5.1, gridSize - 1.9)]) {
+    const f1 = gridToScreen(0, py, originX, originY);
+    const f2 = gridToScreen(0, py + 0.95, originX, originY);
+    const fMidX = (f1.sx + f2.sx) / 2;
+    const fMidY = (f1.sy + f2.sy) / 2;
+    ctx.beginPath();
+    ctx.moveTo(f1.sx, f1.sy - 62);
+    ctx.lineTo(f2.sx, f2.sy - 62);
+    ctx.lineTo(f2.sx, f2.sy - 30);
+    ctx.lineTo(f1.sx, f1.sy - 30);
+    ctx.closePath();
+    ctx.fillStyle = '#fffdf7';
+    ctx.fill();
+    ctx.strokeStyle = '#8b5a2b';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    // Cute flower art inside frame
+    ctx.strokeStyle = '#27ae60';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(fMidX, fMidY - 35);
+    ctx.lineTo(fMidX, fMidY - 48);
+    ctx.stroke();
+    ctx.fillStyle = '#e74c3c';
+    ctx.beginPath();
+    ctx.arc(fMidX, fMidY - 50, 3.2, 0, Math.PI * 2);
+    ctx.arc(fMidX - 3, fMidY - 46, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.beginPath();
   ctx.moveTo(m1.sx, m1.sy - 64);
   ctx.lineTo(m2.sx, m2.sy - 64);
@@ -674,6 +706,60 @@ function drawExterior(
 
     void center;
   };
+
+  // Neighborhood storefronts across the street along y = -6.2 (drawn behind cars & trees!)
+  const drawNeighborShop = (
+    gx: number,
+    lenX: number,
+    wallTop: string,
+    wallLeft: string,
+    wallRight: string,
+    roofCol: string,
+    awningA: string,
+    awningB: string
+  ) => {
+    const gy = -6.2;
+    const widY = 1.6;
+    // Main building body + roof cornice
+    drawPrism(gx, gy, lenX, widY, -14, 52, roofCol, wallLeft, wallRight);
+    drawPrism(gx, gy, lenX + 0.14, widY + 0.14, 38, 6, wallTop, shadeColor(roofCol, -18), shadeColor(roofCol, -30));
+
+    // Glass storefront door + display window on front (+y) face
+    const dA = gridToScreen(gx - 0.35, gy + widY / 2 + 0.02, originX, originY);
+    const dB = gridToScreen(gx + 0.35, gy + widY / 2 + 0.02, originX, originY);
+    ctx.fillStyle = '#bfe9ff';
+    ctx.beginPath();
+    ctx.moveTo(dA.sx, dA.sy + 12);
+    ctx.lineTo(dB.sx, dB.sy + 12);
+    ctx.lineTo(dB.sx, dB.sy - 14);
+    ctx.lineTo(dA.sx, dA.sy - 14);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#5c3317';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Striped awning above storefront
+    const steps = 6;
+    for (let i = 0; i < steps; i++) {
+      const t0 = i / steps;
+      const t1 = (i + 1) / steps;
+      const a0 = gridToScreen(gx - lenX * 0.4 + lenX * 0.8 * t0, gy + widY / 2 + 0.05, originX, originY);
+      const a1 = gridToScreen(gx - lenX * 0.4 + lenX * 0.8 * t1, gy + widY / 2 + 0.05, originX, originY);
+      ctx.fillStyle = i % 2 === 0 ? awningA : awningB;
+      ctx.beginPath();
+      ctx.moveTo(a0.sx, a0.sy - 16);
+      ctx.lineTo(a1.sx, a1.sy - 16);
+      ctx.lineTo(a1.sx - 4, a1.sy - 8);
+      ctx.lineTo(a0.sx - 4, a0.sy - 8);
+      ctx.closePath();
+      ctx.fill();
+    }
+  };
+
+  drawNeighborShop(1.1, 2.3, '#e67e22', '#fff3e0', '#f0dcc0', '#d35400', '#2980b9', '#ffffff');
+  drawNeighborShop(Math.max(4.1, gridSize * 0.52), 2.1, '#2ecc71', '#e8f8f5', '#cceae3', '#27ae60', '#e84393', '#ffffff');
+  drawNeighborShop(gridSize - 0.7, 2.2, '#f1c40f', '#fef9e7', '#f5e7bd', '#b7950b', '#c0392b', '#fff8ee');
 
   // Animated 2010 cartoon cars driving along the avenue
   const car1X = ((timeSec * 1.9) % (gridSize + 12)) - 6;
