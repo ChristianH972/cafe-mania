@@ -504,48 +504,140 @@ function drawExterior(
     drawIsoDiamond(ctx, cw.sx, cw.sy + 5, TILE_W * 0.24, TILE_H * 0.48, '#ecf0f1');
   }
 
-  // Helper to draw a detailed 2010 cartoon car
+  // Helper to draw a true elongated 3D isometric car along the X avenue axis
+  const drawPrism = (
+    gx: number,
+    gy: number,
+    lenX: number,
+    widY: number,
+    z0: number,
+    zH: number,
+    topCol: string,
+    leftCol: string,
+    rightCol: string
+  ) => {
+    const hx = lenX / 2;
+    const hy = widY / 2;
+    // 4 base corners in grid space (shifted to tile center +0.5,+0.5 is not needed since we pass exact center)
+    const pTop = gridToScreen(gx - hx, gy - hy, originX, originY);
+    const pRight = gridToScreen(gx + hx, gy - hy, originX, originY);
+    const pFront = gridToScreen(gx + hx, gy + hy, originX, originY);
+    const pLeft = gridToScreen(gx - hx, gy + hy, originX, originY);
+    const zTop = z0 + zH;
+
+    // Left visible face (pLeft -> pFront, facing +y)
+    ctx.beginPath();
+    ctx.moveTo(pLeft.sx, pLeft.sy - z0);
+    ctx.lineTo(pFront.sx, pFront.sy - z0);
+    ctx.lineTo(pFront.sx, pFront.sy - zTop);
+    ctx.lineTo(pLeft.sx, pLeft.sy - zTop);
+    ctx.closePath();
+    ctx.fillStyle = leftCol;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+
+    // Right visible face (pFront -> pRight, facing +x)
+    ctx.beginPath();
+    ctx.moveTo(pFront.sx, pFront.sy - z0);
+    ctx.lineTo(pRight.sx, pRight.sy - z0);
+    ctx.lineTo(pRight.sx, pRight.sy - zTop);
+    ctx.lineTo(pFront.sx, pFront.sy - zTop);
+    ctx.closePath();
+    ctx.fillStyle = rightCol;
+    ctx.fill();
+    ctx.stroke();
+
+    // Top face
+    ctx.beginPath();
+    ctx.moveTo(pTop.sx, pTop.sy - zTop);
+    ctx.lineTo(pRight.sx, pRight.sy - zTop);
+    ctx.lineTo(pFront.sx, pFront.sy - zTop);
+    ctx.lineTo(pLeft.sx, pLeft.sy - zTop);
+    ctx.closePath();
+    ctx.fillStyle = topCol;
+    ctx.fill();
+    ctx.stroke();
+  };
+
   const drawDetailedCar = (
-    cx: number,
-    cy: number,
+    gx: number,
+    gy: number,
     dir: 1 | -1,
     bodyTop: string,
     bodyLeft: string,
     bodyRight: string
   ) => {
-    // Asphalt shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    const center = gridToScreen(gx, gy, originX, originY);
+    // Elongated asphalt shadow
+    const sA = gridToScreen(gx - 0.65, gy, originX, originY);
+    const sB = gridToScreen(gx + 0.65, gy, originX, originY);
+    ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+    ctx.lineWidth = 16;
+    ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.ellipse(cx, cy + 7, 19, 9, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // Wheels
-    ctx.fillStyle = '#1e272e';
+    ctx.moveTo(sA.sx, sA.sy + 14);
+    ctx.lineTo(sB.sx, sB.sy + 14);
+    ctx.stroke();
+
+    // Wheels on camera-facing side (+y) with silver hubcaps
+    for (const wxOff of [-0.36, 0.36]) {
+      const wPos = gridToScreen(gx + wxOff, gy + 0.27, originX, originY);
+      ctx.fillStyle = '#1e272e';
+      ctx.beginPath();
+      ctx.ellipse(wPos.sx, wPos.sy + 13, 5, 4.2, 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#bdc3c7';
+      ctx.beginPath();
+      ctx.ellipse(wPos.sx, wPos.sy + 13, 2.2, 1.8, 0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Lower body chassis (elongated along X!)
+    drawPrism(gx, gy, 1.26, 0.56, -12, 9, bodyTop, bodyLeft, bodyRight);
+
+    // Cabin roof (shorter & slightly set back so there's a clear front hood!)
+    const cabinGx = gx - dir * 0.08;
+    drawPrism(cabinGx, gy, 0.64, 0.48, -3, 8, bodyTop, '#546e7a', '#37474f');
+
+    // Side window glass strip on cabin
+    const winA = gridToScreen(cabinGx - 0.24, gy + 0.25, originX, originY);
+    const winB = gridToScreen(cabinGx + 0.24, gy + 0.25, originX, originY);
+    ctx.strokeStyle = '#bfe9ff';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'butt';
     ctx.beginPath();
-    ctx.ellipse(cx - 10, cy + 5, 3.5, 2.5, 0, 0, Math.PI * 2);
-    ctx.ellipse(cx + 8, cy + 8, 3.5, 2.5, 0, 0, Math.PI * 2);
+    ctx.moveTo(winA.sx, winA.sy - 1);
+    ctx.lineTo(winB.sx, winB.sy - 1);
+    ctx.stroke();
+
+    // Headlights (front) & Taillights (back)
+    const frontPos = gridToScreen(gx + dir * 0.63, gy + 0.14, originX, originY);
+    const rearPos = gridToScreen(gx - dir * 0.63, gy + 0.14, originX, originY);
+    ctx.fillStyle = 'rgba(255, 245, 157, 0.35)';
+    ctx.beginPath();
+    ctx.arc(frontPos.sx + dir * 6, frontPos.sy + 7, 6, 0, Math.PI * 2);
     ctx.fill();
-    // Chassis + Cabin
-    drawIsoBox(ctx, cx, cy + 2, 34, 18, 11, bodyTop, bodyLeft, bodyRight);
-    drawIsoBox(ctx, cx, cy - 8, 22, 12, 8, '#dff9fb', '#95afc0', '#7f8fa6');
-    // Headlights & Taillights
     ctx.fillStyle = '#fff59d';
     ctx.beginPath();
-    ctx.arc(cx + dir * 13, cy + dir * 2 - 2, 2, 0, Math.PI * 2);
+    ctx.arc(frontPos.sx, frontPos.sy + 6, 2.2, 0, Math.PI * 2);
     ctx.fill();
+
     ctx.fillStyle = '#ff5252';
     ctx.beginPath();
-    ctx.arc(cx - dir * 13, cy - dir * 2 - 2, 1.8, 0, Math.PI * 2);
+    ctx.arc(rearPos.sx, rearPos.sy + 6, 2, 0, Math.PI * 2);
     ctx.fill();
+
+    void center;
   };
 
   // Animated 2010 cartoon cars driving along the avenue
   const car1X = ((timeSec * 1.9) % (gridSize + 12)) - 6;
-  const car1Pos = gridToScreen(car1X, -2.15, originX, originY);
-  drawDetailedCar(car1Pos.sx, car1Pos.sy, 1, '#e74c3c', '#c0392b', '#962d22');
+  drawDetailedCar(car1X, -2.35, 1, '#e74c3c', '#c0392b', '#962d22');
 
   const car2X = gridSize + 6 - ((timeSec * 1.45 + 5) % (gridSize + 12));
-  const car2Pos = gridToScreen(car2X, -3.55, originX, originY);
-  drawDetailedCar(car2Pos.sx, car2Pos.sy, -1, '#3498db', '#2980b9', '#1f618d');
+  drawDetailedCar(car2X, -3.7, -1, '#3498db', '#2980b9', '#1f618d');
 
   // Street lamps with warm glow halo & layered trees
   for (const lx of [1, gridSize - 1]) {
