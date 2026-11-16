@@ -680,27 +680,56 @@ function drawFurnitureItem(
     if (f.counter && f.counter.portions > 0 && f.counter.recipeId) {
       const recipe = getRecipeById(f.counter.recipeId);
       const topY = sy + 4 - 24 + (TILE_H * 0.82) / 2;
-      // Serving tray
-      ctx.fillStyle = '#ffffff';
+      // Serving tray (greenish tint if spoiled)
+      ctx.fillStyle = f.counter.spoiled ? '#a3cb38' : '#ffffff';
       ctx.beginPath();
       ctx.ellipse(sx, topY, 13, 7, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = '#dcdde1';
+      ctx.strokeStyle = f.counter.spoiled ? '#556b2f' : '#dcdde1';
       ctx.lineWidth = 1;
       ctx.stroke();
 
       ctx.font = '18px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(recipe?.emoji ?? '🍽️', sx, topY + 3);
+      ctx.fillText(f.counter.spoiled ? '🤢' : (recipe?.emoji ?? '🍽️'), sx, topY + 3);
 
-      // Portion badge
-      ctx.fillStyle = '#e67e22';
-      ctx.beginPath();
-      ctx.roundRect(sx + 8, topY - 18, 22, 14, 7);
-      ctx.fill();
-      ctx.font = 'bold 10px Nunito, sans-serif';
-      ctx.fillStyle = '#fff';
-      ctx.fillText(`${f.counter.portions}`, sx + 19, topY - 8);
+      if (f.counter.spoiled) {
+        const bounce = Math.sin(timeSec * 6) * 2;
+        ctx.fillStyle = '#c0392b';
+        ctx.beginPath();
+        ctx.roundRect(sx - 28, topY - 30 + bounce, 56, 17, 8);
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.font = 'bold 9px Nunito, sans-serif';
+        ctx.fillStyle = '#fff';
+        ctx.fillText('🗑️ LIMPAR', sx, topY - 19 + bounce);
+      } else {
+        // Portion badge
+        ctx.fillStyle = '#e67e22';
+        ctx.beginPath();
+        ctx.roundRect(sx + 8, topY - 18, 22, 14, 7);
+        ctx.fill();
+        ctx.font = 'bold 10px Nunito, sans-serif';
+        ctx.fillStyle = '#fff';
+        ctx.fillText(`${f.counter.portions}`, sx + 19, topY - 8);
+
+        // Freshness bar
+        const fresh = Math.max(0, Math.min(1, f.counter.freshness ?? 1));
+        const barW = 28;
+        const barH = 4;
+        const bx = sx - barW / 2;
+        const by = topY - 22;
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        ctx.beginPath();
+        ctx.roundRect(bx - 1, by - 1, barW + 2, barH + 2, 2);
+        ctx.fill();
+        ctx.fillStyle = fresh > 0.5 ? '#2ecc71' : fresh > 0.25 ? '#f1c40f' : '#e74c3c';
+        ctx.beginPath();
+        ctx.roundRect(bx, by, Math.max(2, barW * fresh), barH, 2);
+        ctx.fill();
+      }
     }
   } else if (item.kind === 'table') {
     const centerY = sy + TILE_H / 2;

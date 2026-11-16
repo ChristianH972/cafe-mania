@@ -54,6 +54,8 @@ export interface CounterState {
   recipeId: string | null;
   portions: number;
   maxPortions: number;
+  freshness?: number; // 1 = fresh, 0 = spoiled
+  spoiled?: boolean;
 }
 
 export interface TableState {

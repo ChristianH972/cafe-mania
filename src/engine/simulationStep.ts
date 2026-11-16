@@ -217,7 +217,7 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
     const { chair: chosenChair, table: chosenTable } =
       freeSeats[Math.floor(Math.random() * freeSeats.length)];
     const availableCounters = state.furniture.filter(
-      (f) => f.counter && f.counter.portions > 0 && f.counter.recipeId
+      (f) => f.counter && !f.counter.spoiled && f.counter.portions > 0 && f.counter.recipeId
     );
     const unlocked = RECIPES.filter((r) => r.unlockLevel <= state.level);
     const desired =
@@ -365,6 +365,7 @@ function assignChefTask(state: GameState, chef: StaffMember): void {
   const hasCounterSpace = state.furniture.some(
     (f) =>
       f.counter &&
+      !f.counter.spoiled &&
       (f.counter.portions === 0 ||
         (f.counter.recipeId === readyStove.stove!.recipeId && f.counter.portions < f.counter.maxPortions))
   );
@@ -383,8 +384,12 @@ function assignWaiterTask(state: GameState, waiter: StaffMember): void {
   if (waitingCustomer) {
     const matchingCounter =
       state.furniture.find(
-        (f) => f.counter && f.counter.portions > 0 && f.counter.recipeId === waitingCustomer.desiredRecipeId
-      ) ?? state.furniture.find((f) => f.counter && f.counter.portions > 0);
+        (f) =>
+          f.counter &&
+          !f.counter.spoiled &&
+          f.counter.portions > 0 &&
+          f.counter.recipeId === waitingCustomer.desiredRecipeId
+      ) ?? state.furniture.find((f) => f.counter && !f.counter.spoiled && f.counter.portions > 0);
 
     if (matchingCounter) {
       waiter.targetFurnitureId = matchingCounter.instanceId;
@@ -451,8 +456,12 @@ function handleStaffArrival(
 
       const counter =
         state.furniture.find(
-          (f) => f.counter && f.counter.recipeId === recipeId && f.counter.portions > 0
-        ) ?? state.furniture.find((f) => f.counter && f.counter.portions === 0);
+          (f) =>
+            f.counter &&
+            !f.counter.spoiled &&
+            f.counter.recipeId === recipeId &&
+            f.counter.portions > 0
+        ) ?? state.furniture.find((f) => f.counter && !f.counter.spoiled && f.counter.portions === 0);
 
       if (counter) {
         s.carryingRecipeId = recipeId;
@@ -461,18 +470,26 @@ function handleStaffArrival(
         s.path = findPath(s.x, s.y, adj.x, adj.y, state.gridSize, state.furniture, false);
         return;
       }
-    } else if (s.carryingRecipeId && target?.counter) {
+    } else if (s.carryingRecipeId && target?.counter && !target.counter.spoiled) {
       const recipe = getRecipeById(s.carryingRecipeId);
       const portions = recipe?.portions ?? 8;
       if (target.counter.portions === 0 || target.counter.recipeId === s.carryingRecipeId) {
         target.counter.recipeId = s.carryingRecipeId;
         target.counter.portions += portions;
         target.counter.maxPortions = Math.max(target.counter.maxPortions, target.counter.portions);
+        target.counter.freshness = 1;
+        target.counter.spoiled = false;
       }
       s.carryingRecipeId = null;
     }
   } else if (s.role === 'waiter' && s.taskType === 'serve') {
-    if (!s.carryingRecipeId && target?.counter && target.counter.portions > 0 && target.counter.recipeId) {
+    if (
+      !s.carryingRecipeId &&
+      target?.counter &&
+      !target.counter.spoiled &&
+      target.counter.portions > 0 &&
+      target.counter.recipeId
+    ) {
       const waitingCustomer =
         state.customers.find(
           (c) => c.state === 'waiting_food' && c.desiredRecipeId === target.counter!.recipeId
@@ -486,6 +503,8 @@ function handleStaffArrival(
           if (target.counter.portions <= 0) {
             target.counter.recipeId = null;
             target.counter.maxPortions = 0;
+            target.counter.freshness = 1;
+            target.counter.spoiled = false;
           }
           s.targetFurnitureId = chair.instanceId;
           const adj = findBestAdjacentTile(s.x, s.y, chair.x, chair.y, state.gridSize, state.furniture);
@@ -518,6 +537,31 @@ function handleStaffArrival(
   s.taskType = null;
 }
 
+function stepCounters(state: GameState, dt: number, effects: SimulationEffects): void {
+  for (const f of state.furniture) {
+    if (!f.counter || f.counter.portions <= 0 || f.counter.spoiled) continue;
+    const current = f.counter.freshness ?? 1;
+    // 180s window for dishes on the counter before spoiling
+    const next = current - dt / 180;
+    if (next <= 0) {
+      f.counter.freshness = 0;
+      f.counter.spoiled = true;
+      state.buzz = Math.max(0, state.buzz - 2);
+      effects.floatingTexts.push({
+        id: nextId('ft'),
+        gridX: f.x,
+        gridY: f.y,
+        text: '🤢 Estragou!',
+        color: '#e74c3c',
+        life: 1.5,
+        maxLife: 1.5,
+      });
+    } else {
+      f.counter.freshness = next;
+    }
+  }
+}
+
 export function stepSimulation(
   state: GameState,
   rawDt: number,
@@ -542,6 +586,7 @@ export function stepSimulation(
   if (state.speed === 0) return;
 
   stepStoves(state, dt, effects);
+  stepCounters(state, dt, effects);
   stepCustomers(state, dt, effects);
   stepStaff(state, dt, effects);
 }
@@ -557,8 +602,12 @@ export function collectReadyStoveDirect(
 
   const counter =
     state.furniture.find(
-      (f) => f.counter && f.counter.recipeId === recipeId && f.counter.portions > 0
-    ) ?? state.furniture.find((f) => f.counter && f.counter.portions === 0);
+      (f) =>
+        f.counter &&
+        !f.counter.spoiled &&
+        f.counter.recipeId === recipeId &&
+        f.counter.portions > 0
+    ) ?? state.furniture.find((f) => f.counter && !f.counter.spoiled && f.counter.portions === 0);
 
   if (!counter?.counter) return false;
 
@@ -570,6 +619,8 @@ export function collectReadyStoveDirect(
   counter.counter.recipeId = recipeId;
   counter.counter.portions += recipe?.portions ?? 8;
   counter.counter.maxPortions = Math.max(counter.counter.maxPortions, counter.counter.portions);
+  counter.counter.freshness = 1;
+  counter.counter.spoiled = false;
 
   state.stats.dishesCooked += 1;
   state.recipeMastery[recipeId] = (state.recipeMastery[recipeId] ?? 0) + 1;

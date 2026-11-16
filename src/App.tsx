@@ -398,6 +398,15 @@ export function App() {
       addXpAndCoins(s, 2, 2, effectsRef.current, occupied.x, occupied.y);
       soundEngine.playClean();
       setUiState({ ...s });
+    } else if (occupied.counter?.spoiled) {
+      occupied.counter.portions = 0;
+      occupied.counter.recipeId = null;
+      occupied.counter.maxPortions = 0;
+      occupied.counter.freshness = 1;
+      occupied.counter.spoiled = false;
+      soundEngine.playClean();
+      setUiState({ ...s });
+      showToast('Balcão limpo!');
     }
   };
 
