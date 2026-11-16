@@ -3,6 +3,7 @@ import { getRecipeById } from '../data/recipes';
 import {
   Customer,
   FloatingText,
+  HairStyle,
   Particle,
   PlacedFurniture,
   StaffMember,
@@ -977,103 +978,297 @@ function drawCharacter(
   bubbleText?: string,
   bubbleBg = '#ffffff',
   isSeated = false,
-  isEating = false
+  isEating = false,
+  hairStyle: HairStyle = 'classic',
+  mood: 'happy' | 'neutral' | 'impatient' | 'angry' = 'happy',
+  labelName?: string,
+  carryingTray = false
 ) {
   const { sx, sy } = gridToScreen(gx, gy, originX, originY);
   const seatDrop = isSeated ? 5 : 0;
   const footY = sy + TILE_H / 2 + 2;
   const eatBob = isEating ? Math.sin(animPhase * 12) * 1.4 : 0;
-  const bob = (isWalking ? Math.abs(Math.sin(animPhase * 8)) * 4 : 0) - seatDrop + eatBob;
+  const bob = (isWalking ? Math.abs(Math.sin(animPhase * 8)) * 3.5 : 0) - seatDrop + eatBob;
 
   // Shadow (skip ground shadow when seated on a chair)
   if (!isSeated) {
-    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
     ctx.beginPath();
-    ctx.ellipse(sx, footY, 10, 5, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx, footY, 10.5, 5, 0, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Legs (tucked when seated)
-  const legSwing = isWalking ? Math.sin(animPhase * 8) * 3 : 0;
+  // Legs + shoes
+  const legSwing = isWalking ? Math.sin(animPhase * 8) * 3.2 : 0;
   ctx.strokeStyle = '#2c3e50';
   ctx.lineWidth = 3.5;
   ctx.lineCap = 'round';
   ctx.beginPath();
   if (isSeated) {
-    ctx.moveTo(sx - 3, footY - 12 - bob);
-    ctx.lineTo(sx - 4, footY - 5);
-    ctx.moveTo(sx + 3, footY - 12 - bob);
-    ctx.lineTo(sx + 4, footY - 5);
+    ctx.moveTo(sx - 3.2, footY - 12 - bob);
+    ctx.lineTo(sx - 4.2, footY - 5);
+    ctx.moveTo(sx + 3.2, footY - 12 - bob);
+    ctx.lineTo(sx + 4.2, footY - 5);
   } else {
-    ctx.moveTo(sx - 3, footY - 12 - bob);
+    ctx.moveTo(sx - 3.2, footY - 12 - bob);
     ctx.lineTo(sx - 4 + legSwing, footY - 2);
-    ctx.moveTo(sx + 3, footY - 12 - bob);
+    ctx.moveTo(sx + 3.2, footY - 12 - bob);
     ctx.lineTo(sx + 4 - legSwing, footY - 2);
   }
   ctx.stroke();
 
-  // Body
+  // Shoes
+  if (!isSeated) {
+    ctx.fillStyle = '#1e272e';
+    ctx.beginPath();
+    ctx.ellipse(sx - 4 + legSwing, footY - 1.5, 2.8, 1.8, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx + 4 - legSwing, footY - 1.5, 2.8, 1.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Arms (behind/beside torso)
+  const armSwing = isWalking ? Math.sin(animPhase * 8) * 3 : 0;
+  ctx.strokeStyle = shadeColor(shirtColor, -14);
+  ctx.lineWidth = 3.2;
+  ctx.beginPath();
+  // Left arm
+  ctx.moveTo(sx - 7.5, footY - 23 - bob);
+  ctx.lineTo(sx - 10.5, footY - 14 - bob - armSwing);
+  // Right arm (raised if carrying tray!)
+  if (carryingTray) {
+    ctx.moveTo(sx + 7.5, footY - 23 - bob);
+    ctx.lineTo(sx + 13, footY - 25 - bob);
+  } else {
+    ctx.moveTo(sx + 7.5, footY - 23 - bob);
+    ctx.lineTo(sx + 10.5, footY - 14 - bob + armSwing);
+  }
+  ctx.stroke();
+
+  // Hands
+  ctx.fillStyle = skinColor;
+  ctx.beginPath();
+  ctx.arc(sx - 10.5, footY - 14 - bob - armSwing, 2.1, 0, Math.PI * 2);
+  if (carryingTray) {
+    ctx.arc(sx + 13, footY - 25 - bob, 2.1, 0, Math.PI * 2);
+  } else {
+    ctx.arc(sx + 10.5, footY - 14 - bob + armSwing, 2.1, 0, Math.PI * 2);
+  }
+  ctx.fill();
+
+  // Torso (Chibi jacket/shirt)
   ctx.fillStyle = shirtColor;
   ctx.beginPath();
-  ctx.roundRect(sx - 8, footY - 26 - bob, 16, 16, 5);
+  ctx.roundRect(sx - 8.5, footY - 26 - bob, 17, 16, 5);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Shirt collar
+  ctx.fillStyle = role === 'waiter' ? '#ffffff' : shadeColor(shirtColor, 26);
+  ctx.beginPath();
+  ctx.moveTo(sx - 4, footY - 26 - bob);
+  ctx.lineTo(sx, footY - 22 - bob);
+  ctx.lineTo(sx + 4, footY - 26 - bob);
+  ctx.closePath();
+  ctx.fill();
+
+  if (role === 'chef') {
+    // White chef apron + pocket + buttons
+    ctx.fillStyle = '#fdfefe';
+    ctx.beginPath();
+    ctx.roundRect(sx - 5.5, footY - 21 - bob, 11, 11, 2);
+    ctx.fill();
+    ctx.strokeStyle = '#d5dbdb';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+    // Red neckerchief
+    ctx.fillStyle = '#e74c3c';
+    ctx.beginPath();
+    ctx.moveTo(sx - 4, footY - 25.5 - bob);
+    ctx.lineTo(sx, footY - 22 - bob);
+    ctx.lineTo(sx + 4, footY - 25.5 - bob);
+    ctx.closePath();
+    ctx.fill();
+  } else if (role === 'waiter') {
+    // Waiter apron + red bow tie
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.roundRect(sx - 5.5, footY - 17 - bob, 11, 7, 2);
+    ctx.fill();
+    ctx.fillStyle = '#e74c3c';
+    ctx.beginPath();
+    ctx.moveTo(sx - 3.5, footY - 24.5 - bob);
+    ctx.lineTo(sx, footY - 23 - bob);
+    ctx.lineTo(sx - 3.5, footY - 21.5 - bob);
+    ctx.moveTo(sx + 3.5, footY - 24.5 - bob);
+    ctx.lineTo(sx, footY - 23 - bob);
+    ctx.lineTo(sx + 3.5, footY - 21.5 - bob);
+    ctx.fill();
+  }
+
+  // Silver serving tray when carrying food
+  if (carryingTray) {
+    ctx.fillStyle = '#ecf0f1';
+    ctx.beginPath();
+    ctx.ellipse(sx + 13, footY - 27 - bob, 7.5, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#95a5a6';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // Head (Chibi proportion)
+  const headY = footY - 34.5 - bob;
+  ctx.fillStyle = skinColor;
+  ctx.beginPath();
+  ctx.arc(sx, headY, 9.5, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = 'rgba(0,0,0,0.2)';
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  if (role === 'waiter') {
-    // Bow tie
-    ctx.fillStyle = '#e74c3c';
+  // Subtle rosy cheeks
+  ctx.fillStyle = 'rgba(255, 118, 117, 0.28)';
+  ctx.beginPath();
+  ctx.ellipse(sx - 5.2, headY + 2, 2, 1.2, 0, 0, Math.PI * 2);
+  ctx.ellipse(sx + 5.2, headY + 2, 2, 1.2, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Expressive Eyes with white highlight
+  ctx.fillStyle = '#1e272e';
+  ctx.beginPath();
+  ctx.arc(sx - 3.4, headY - 0.5, 1.7, 0, Math.PI * 2);
+  ctx.arc(sx + 3.4, headY - 0.5, 1.7, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(sx - 3.9, headY - 1.1, 0.6, 0, Math.PI * 2);
+  ctx.arc(sx + 2.9, headY - 1.1, 0.6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Mouth / Mood expression
+  ctx.strokeStyle = '#6c3428';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  if (isEating) {
+    ctx.fillStyle = '#c0392b';
+    ctx.arc(sx, headY + 3.5, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (mood === 'angry') {
+    // Angry eyebrows + frown
+    ctx.moveTo(sx - 5, headY - 3.2);
+    ctx.lineTo(sx - 1.8, headY - 2.2);
+    ctx.moveTo(sx + 5, headY - 3.2);
+    ctx.lineTo(sx + 1.8, headY - 2.2);
+    ctx.stroke();
     ctx.beginPath();
-    ctx.arc(sx, footY - 23 - bob, 2.5, 0, Math.PI * 2);
+    ctx.arc(sx, headY + 5, 2.3, Math.PI * 1.15, Math.PI * 1.85);
+    ctx.stroke();
+  } else if (mood === 'impatient') {
+    ctx.moveTo(sx - 2.2, headY + 3.8);
+    ctx.lineTo(sx + 2.2, headY + 3.8);
+    ctx.stroke();
+  } else {
+    // Happy smile
+    ctx.arc(sx, headY + 2.6, 2.4, 0.15 * Math.PI, 0.85 * Math.PI);
+    ctx.stroke();
+  }
+
+  // Hair styles (drawn over top of head, under chef hat if chef)
+  ctx.fillStyle = hairColor;
+  if (hairStyle === 'spiky') {
+    ctx.beginPath();
+    ctx.moveTo(sx - 9.5, headY - 2);
+    ctx.lineTo(sx - 7, headY - 12);
+    ctx.lineTo(sx - 2.5, headY - 9);
+    ctx.lineTo(sx, headY - 14);
+    ctx.lineTo(sx + 3, headY - 9);
+    ctx.lineTo(sx + 7.5, headY - 12);
+    ctx.lineTo(sx + 9.5, headY - 2);
+    ctx.arc(sx, headY - 2, 9.5, 0, Math.PI, true);
+    ctx.closePath();
+    ctx.fill();
+  } else if (hairStyle === 'bob') {
+    ctx.beginPath();
+    ctx.arc(sx, headY - 2, 10, Math.PI * 0.9, Math.PI * 0.1);
+    ctx.lineTo(sx + 10.2, headY + 6);
+    ctx.lineTo(sx + 7.5, headY + 6);
+    ctx.lineTo(sx + 7.5, headY - 1);
+    ctx.lineTo(sx - 7.5, headY - 1);
+    ctx.lineTo(sx - 7.5, headY + 6);
+    ctx.lineTo(sx - 10.2, headY + 6);
+    ctx.closePath();
+    ctx.fill();
+  } else if (hairStyle === 'ponytail') {
+    // Side ponytail
+    ctx.beginPath();
+    ctx.ellipse(sx + 9.5, headY - 2, 3.5, 6, 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(sx, headY - 2.5, 9.6, Math.PI, 0);
+    ctx.fill();
+  } else if (hairStyle === 'curly') {
+    for (const [cx, cy, r] of [
+      [-6.5, -7, 4.2],
+      [0, -9, 4.8],
+      [6.5, -7, 4.2],
+      [-8.5, -2.5, 3.6],
+      [8.5, -2.5, 3.6],
+    ]) {
+      ctx.beginPath();
+      ctx.arc(sx + cx, headY + cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    // Classic bangs
+    ctx.beginPath();
+    ctx.arc(sx, headY - 2.5, 9.6, Math.PI, 0);
     ctx.fill();
   }
 
-  // Head
-  ctx.fillStyle = skinColor;
-  ctx.beginPath();
-  ctx.arc(sx, footY - 33 - bob, 8.5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-  ctx.stroke();
-
-  // Eyes
-  ctx.fillStyle = '#2d3436';
-  ctx.beginPath();
-  ctx.arc(sx - 3, footY - 33 - bob, 1.3, 0, Math.PI * 2);
-  ctx.arc(sx + 3, footY - 33 - bob, 1.3, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Hair or Chef Hat
+  // Chef Hat (pleated toque on top)
   if (role === 'chef') {
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.roundRect(sx - 7, footY - 48 - bob, 14, 10, 4);
-    ctx.arc(sx, footY - 48 - bob, 7, 0, Math.PI * 2);
+    ctx.roundRect(sx - 7.5, headY - 16, 15, 9, 3);
+    ctx.arc(sx - 3.5, headY - 17, 5, 0, Math.PI * 2);
+    ctx.arc(sx + 3.5, headY - 17, 5, 0, Math.PI * 2);
+    ctx.arc(sx, headY - 19, 5.5, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = '#dcdde1';
+    ctx.strokeStyle = '#cfd8dc';
+    ctx.lineWidth = 1;
     ctx.stroke();
-  } else {
-    ctx.fillStyle = hairColor;
-    ctx.beginPath();
-    ctx.arc(sx, footY - 36 - bob, 8.5, Math.PI, 0);
-    ctx.fill();
   }
 
-  // Thought bubble
+  // Staff name badge under feet
+  if (labelName) {
+    ctx.font = 'bold 9px Nunito, sans-serif';
+    ctx.textAlign = 'center';
+    const textW = Math.min(72, ctx.measureText(labelName).width + 8);
+    ctx.fillStyle = 'rgba(44, 24, 16, 0.72)';
+    ctx.beginPath();
+    ctx.roundRect(sx - textW / 2, footY + 3, textW, 13, 6);
+    ctx.fill();
+    ctx.fillStyle = '#fff8ee';
+    ctx.fillText(labelName, sx, footY + 12.5);
+  }
+
+  // Thought / carried item bubble
   if (bubbleText) {
+    const bubbleY = headY - (role === 'chef' ? 35 : 27);
     ctx.fillStyle = bubbleBg;
     ctx.beginPath();
-    ctx.roundRect(sx - 16, footY - 64 - bob, 32, 20, 9);
+    ctx.roundRect(sx - 16, bubbleY, 32, 20, 9);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.22)';
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
     ctx.font = '13px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillStyle = '#2d3436';
-    ctx.fillText(bubbleText, sx, footY - 49 - bob);
+    ctx.fillText(bubbleText, sx, bubbleY + 14.5);
   }
 }
 
@@ -1165,7 +1360,12 @@ export function renderCafeScene(params: RenderParams): void {
       c.animPhase,
       c.path.length > 0,
       'customer',
-      c.state === 'leaving' && c.mood === 'happy' ? '❤️' : undefined
+      c.state === 'leaving' && c.mood === 'happy' ? '❤️' : undefined,
+      '#ffffff',
+      false,
+      false,
+      c.hairStyle ?? 'classic',
+      c.mood
     );
   }
 
@@ -1267,13 +1467,16 @@ export function renderCafeScene(params: RenderParams): void {
           bubble,
           bubbleBg,
           isSeated,
-          isEating
+          isEating,
+          c.hairStyle ?? 'classic',
+          c.mood
         ),
     });
   }
 
   for (const s of staff) {
     const carried = getRecipeById(s.carryingRecipeId);
+    const defaultShirt = s.role === 'chef' ? '#ffffff' : '#2c3e50';
     drawables.push({
       depth: s.x + s.y + 0.22,
       draw: () =>
@@ -1281,15 +1484,22 @@ export function renderCafeScene(params: RenderParams): void {
           ctx,
           s.x,
           s.y,
-          '#f5cba7',
-          s.role === 'chef' ? '#ffffff' : '#2c3e50',
-          '#4a235a',
+          s.skinColor ?? '#f5cba7',
+          s.shirtColor ?? defaultShirt,
+          s.hairColor ?? '#4a235a',
           originX,
           originY,
           s.animPhase,
           s.path.length > 0,
           s.role,
-          carried ? carried.emoji : undefined
+          carried ? carried.emoji : undefined,
+          '#ffffff',
+          false,
+          false,
+          s.hairStyle ?? 'classic',
+          'happy',
+          s.name,
+          Boolean(carried)
         ),
     });
   }
@@ -1449,5 +1659,59 @@ export function renderStyleThumbnail(
     ctx.fill();
   }
 
+  ctx.restore();
+}
+
+export function renderCharacterPreview(
+  canvas: HTMLCanvasElement,
+  opts: {
+    role: 'chef' | 'waiter';
+    skinColor: string;
+    shirtColor: string;
+    hairColor: string;
+    hairStyle: HairStyle;
+  },
+  width = 84,
+  height = 90
+): void {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, width, height);
+
+  const scale = 1.25;
+  ctx.scale(scale, scale);
+  const cx = width / (2 * scale);
+  const cy = (height * 0.56) / scale;
+
+  drawCharacter(
+    ctx,
+    0,
+    0,
+    opts.skinColor,
+    opts.shirtColor,
+    opts.hairColor,
+    cx,
+    cy,
+    0,
+    false,
+    opts.role,
+    undefined,
+    '#ffffff',
+    false,
+    false,
+    opts.hairStyle,
+    'happy',
+    undefined,
+    opts.role === 'waiter'
+  );
   ctx.restore();
 }

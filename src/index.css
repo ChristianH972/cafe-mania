@@ -672,6 +672,126 @@ body,
   border-color: #a3e4d7;
 }
 
+.staff-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.staff-custom-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: #4a2c18;
+  margin-top: 4px;
+}
+
+.staff-custom-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.staff-custom-card {
+  gap: 9px;
+}
+
+.staff-custom-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.staff-avatar-box {
+  width: 84px;
+  height: 90px;
+  border-radius: 12px;
+  background: radial-gradient(circle at 50% 45%, #fffdf9, #f7ead8);
+  border: 1.5px solid #ecd5b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.staff-name-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.staff-name-input {
+  width: 100%;
+  padding: 6px 9px;
+  border-radius: 8px;
+  border: 1.5px solid #dfc19e;
+  font-family: var(--font-body);
+  font-weight: 800;
+  font-size: 13px;
+  color: #4a2c18;
+  background: #fffcf7;
+}
+
+.custom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.custom-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #7f6450;
+  min-width: 44px;
+}
+
+.swatch-row {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.mini-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+
+.mini-swatch.active {
+  border-color: #e67e22;
+  box-shadow: 0 0 0 2px #fdebd0;
+  transform: scale(1.1);
+}
+
+.hair-pills {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.hair-pill {
+  padding: 3px 7px;
+  border-radius: 6px;
+  border: 1px solid #dfc19e;
+  background: #fff9f2;
+  color: #5c3317;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.hair-pill.active {
+  background: #e67e22;
+  color: #fff;
+  border-color: #d35400;
+}
+
 .staff-box {
   background: #fff;
   border: 2px solid #ecd5b8;

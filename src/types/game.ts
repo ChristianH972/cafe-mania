@@ -91,12 +91,15 @@ export type CustomerState =
   | 'eating'
   | 'leaving';
 
+export type HairStyle = 'classic' | 'spiky' | 'bob' | 'ponytail' | 'curly';
+
 export interface Customer {
   id: string;
   name: string;
   skinColor: string;
   hairColor: string;
   shirtColor: string;
+  hairStyle?: HairStyle;
   x: number;
   y: number;
   path: GridPos[];
@@ -117,6 +120,10 @@ export interface StaffMember {
   id: string;
   role: StaffRole;
   name: string;
+  skinColor?: string;
+  hairColor?: string;
+  shirtColor?: string;
+  hairStyle?: HairStyle;
   x: number;
   y: number;
   path: GridPos[];

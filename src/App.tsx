@@ -21,7 +21,14 @@ import {
   stepSimulation,
   syncQuests,
 } from './engine/simulationStep';
-import { GameState, Neighbor, OfflineReport, PlacedFurniture, Recipe } from './types/game';
+import {
+  GameState,
+  Neighbor,
+  OfflineReport,
+  PlacedFurniture,
+  Recipe,
+  StaffMember,
+} from './types/game';
 
 export function App() {
   const [offlineReport, setOfflineReport] = useState<OfflineReport | null>(null);
@@ -503,6 +510,17 @@ export function App() {
     showToast('Novo garçom contratado!');
   };
 
+  const handleUpdateStaff = (
+    staffId: string,
+    patch: Partial<Pick<StaffMember, 'name' | 'skinColor' | 'hairColor' | 'shirtColor' | 'hairStyle'>>
+  ) => {
+    const s = stateRef.current;
+    const member = s.staff.find((st) => st.id === staffId);
+    if (!member) return;
+    Object.assign(member, patch);
+    setUiState({ ...s });
+  };
+
   const handleClaimQuest = (questId: string) => {
     const s = stateRef.current;
     const q = s.quests.find((item) => item.id === questId);
@@ -728,6 +746,7 @@ export function App() {
         onBuyWallStyle={handleBuyWallStyle}
         onExpandCafe={handleExpandCafe}
         onHireWaiter={handleHireWaiter}
+        onUpdateStaff={handleUpdateStaff}
         onClaimQuest={handleClaimQuest}
         onVisitNeighbor={(nb) => {
           setVisitingNeighbor(nb);

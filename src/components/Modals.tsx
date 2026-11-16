@@ -2,8 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, Lock, Star, Sparkles, Gift, Eye, UserPlus } from 'lucide-react';
 import { EXPANSION_TIERS, FLOOR_STYLES, FURNITURE_CATALOG, WALL_STYLES } from '../data/catalog';
 import { RECIPES, getMasteryStars } from '../data/recipes';
-import { renderFurnitureThumbnail, renderStyleThumbnail } from '../engine/isoRenderer';
-import { FurnitureKind, GameState, Neighbor, Recipe } from '../types/game';
+import {
+  renderCharacterPreview,
+  renderFurnitureThumbnail,
+  renderStyleThumbnail,
+} from '../engine/isoRenderer';
+import { FurnitureKind, GameState, HairStyle, Neighbor, Recipe, StaffMember } from '../types/game';
 import { ActiveModal } from './BottomDock';
 
 const FurnitureThumbnail: React.FC<{ catalogId: string }> = ({ catalogId }) => {
@@ -30,6 +34,39 @@ const StyleThumbnail: React.FC<{
   return <canvas ref={canvasRef} className="shop-thumb-canvas" />;
 };
 
+const CharacterPreview: React.FC<{
+  role: 'chef' | 'waiter';
+  skinColor: string;
+  shirtColor: string;
+  hairColor: string;
+  hairStyle: HairStyle;
+}> = ({ role, skinColor, shirtColor, hairColor, hairStyle }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    if (canvasRef.current) {
+      renderCharacterPreview(canvasRef.current, {
+        role,
+        skinColor,
+        shirtColor,
+        hairColor,
+        hairStyle,
+      });
+    }
+  }, [role, skinColor, shirtColor, hairColor, hairStyle]);
+  return <canvas ref={canvasRef} className="shop-thumb-canvas" />;
+};
+
+const SKIN_OPTIONS = ['#fdebd0', '#f5cba7', '#e0ac69', '#c68642', '#8d5524'];
+const HAIR_COLOR_OPTIONS = ['#2c3e50', '#6e2c00', '#d4ac0d', '#c0392b', '#8e44ad', '#95a5a6'];
+const SHIRT_OPTIONS = ['#ffffff', '#2c3e50', '#c0392b', '#27ae60', '#2980b9', '#8e44ad', '#e84393'];
+const HAIR_STYLE_OPTIONS: { id: HairStyle; label: string }[] = [
+  { id: 'classic', label: 'Clássico' },
+  { id: 'spiky', label: 'Topete' },
+  { id: 'bob', label: 'Longo' },
+  { id: 'ponytail', label: 'Rabo' },
+  { id: 'curly', label: 'Cacheado' },
+];
+
 const FURNITURE_FILTERS: { id: 'all' | FurnitureKind; label: string }[] = [
   { id: 'all', label: 'Todos' },
   { id: 'stove', label: 'Fogões' },
@@ -50,6 +87,10 @@ interface ModalsProps {
   onBuyWallStyle: (styleId: string) => void;
   onExpandCafe: (gridSize: number, price: number) => void;
   onHireWaiter: () => void;
+  onUpdateStaff: (
+    staffId: string,
+    patch: Partial<Pick<StaffMember, 'name' | 'skinColor' | 'hairColor' | 'shirtColor' | 'hairStyle'>>
+  ) => void;
   onClaimQuest: (questId: string) => void;
   onVisitNeighbor: (neighbor: Neighbor) => void;
   onGiftNeighbor: (neighborId: string) => void;
@@ -66,6 +107,7 @@ export const Modals: React.FC<ModalsProps> = ({
   onBuyWallStyle,
   onExpandCafe,
   onHireWaiter,
+  onUpdateStaff,
   onClaimQuest,
   onVisitNeighbor,
   onGiftNeighbor,
@@ -362,22 +404,125 @@ export const Modals: React.FC<ModalsProps> = ({
               )}
 
               {shopTab === 'staff' && (
-                <div className="staff-box">
-                  <UserPlus size={40} color="#e67e22" />
-                  <h3>Contratar Novo Garçom</h3>
-                  <p>
-                    Garçons servem os clientes automaticamente a partir dos balcões e limpam mesas sujas!
-                    Você tem atualmente <strong>{waiterCount}</strong> garçom(ns).
-                  </p>
-                  <button
-                    className="btn-glossy btn-primary"
-                    disabled={state.coins < nextWaiterCost || waiterCount >= 4}
-                    onClick={onHireWaiter}
-                  >
-                    {waiterCount >= 4
-                      ? 'Máximo de Garçons (4)'
-                      : `Contratar Garçom (${nextWaiterCost} 🪙)`}
-                  </button>
+                <div className="staff-section">
+                  <div className="staff-box">
+                    <UserPlus size={34} color="#e67e22" />
+                    <h3>Contratar Novo Garçom</h3>
+                    <p>
+                      Garçons servem os clientes automaticamente a partir dos balcões e limpam mesas sujas!
+                      Você tem atualmente <strong>{waiterCount}</strong> garçom(ns).
+                    </p>
+                    <button
+                      className="btn-glossy btn-primary"
+                      disabled={state.coins < nextWaiterCost || waiterCount >= 4}
+                      onClick={onHireWaiter}
+                    >
+                      {waiterCount >= 4
+                        ? 'Máximo de Garçons (4)'
+                        : `Contratar Garçom (${nextWaiterCost} 🪙)`}
+                    </button>
+                  </div>
+
+                  <h3 className="staff-custom-title">🎨 Customizar Chef & Garçons</h3>
+                  <div className="staff-custom-grid">
+                    {state.staff.map((member) => {
+                      const skin = member.skinColor ?? '#f5cba7';
+                      const shirt =
+                        member.shirtColor ?? (member.role === 'chef' ? '#ffffff' : '#2c3e50');
+                      const hair = member.hairColor ?? '#4a235a';
+                      const hairStyle = member.hairStyle ?? 'classic';
+                      return (
+                        <div key={member.id} className="item-card staff-custom-card">
+                          <div className="staff-custom-header">
+                            <div className="staff-avatar-box">
+                              <CharacterPreview
+                                role={member.role}
+                                skinColor={skin}
+                                shirtColor={shirt}
+                                hairColor={hair}
+                                hairStyle={hairStyle}
+                              />
+                            </div>
+                            <div className="staff-name-col">
+                              <span className="buzz-tag">
+                                {member.role === 'chef' ? '👨‍🍳 Chef' : '🤵 Garçom'}
+                              </span>
+                              <input
+                                className="staff-name-input"
+                                type="text"
+                                maxLength={16}
+                                value={member.name}
+                                onChange={(e) =>
+                                  onUpdateStaff(member.id, { name: e.target.value })
+                                }
+                              />
+                            </div>
+                          </div>
+
+                          <div className="custom-row">
+                            <span className="custom-label">Pele</span>
+                            <div className="swatch-row">
+                              {SKIN_OPTIONS.map((c) => (
+                                <button
+                                  key={c}
+                                  type="button"
+                                  className={`mini-swatch ${skin === c ? 'active' : ''}`}
+                                  style={{ background: c }}
+                                  onClick={() => onUpdateStaff(member.id, { skinColor: c })}
+                                />
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="custom-row">
+                            <span className="custom-label">Cabelo</span>
+                            <div className="swatch-row">
+                              {HAIR_COLOR_OPTIONS.map((c) => (
+                                <button
+                                  key={c}
+                                  type="button"
+                                  className={`mini-swatch ${hair === c ? 'active' : ''}`}
+                                  style={{ background: c }}
+                                  onClick={() => onUpdateStaff(member.id, { hairColor: c })}
+                                />
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="custom-row">
+                            <span className="custom-label">Estilo</span>
+                            <div className="hair-pills">
+                              {HAIR_STYLE_OPTIONS.map((hs) => (
+                                <button
+                                  key={hs.id}
+                                  type="button"
+                                  className={`hair-pill ${hairStyle === hs.id ? 'active' : ''}`}
+                                  onClick={() => onUpdateStaff(member.id, { hairStyle: hs.id })}
+                                >
+                                  {hs.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="custom-row">
+                            <span className="custom-label">Roupa</span>
+                            <div className="swatch-row">
+                              {SHIRT_OPTIONS.map((c) => (
+                                <button
+                                  key={c}
+                                  type="button"
+                                  className={`mini-swatch ${shirt === c ? 'active' : ''}`}
+                                  style={{ background: c }}
+                                  onClick={() => onUpdateStaff(member.id, { shirtColor: c })}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </>

@@ -5,6 +5,7 @@ import {
   Customer,
   FloatingText,
   GameState,
+  HairStyle,
   Particle,
   PlacedFurniture,
   StaffMember,
@@ -230,12 +231,14 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
     const spawnX = spawnFromLeft ? -2.5 : state.gridSize + 2.5;
     const insidePath = findPath(doorX, doorY, chosenChair.x, chosenChair.y, state.gridSize, state.furniture, true);
 
+    const hairStyles: HairStyle[] = ['classic', 'spiky', 'bob', 'ponytail', 'curly'];
     const customer: Customer = {
       id: nextId('cust'),
       name: CUSTOMER_NAMES[Math.floor(Math.random() * CUSTOMER_NAMES.length)],
       skinColor: SKIN_TONES[Math.floor(Math.random() * SKIN_TONES.length)],
       hairColor: HAIR_COLORS[Math.floor(Math.random() * HAIR_COLORS.length)],
       shirtColor: SHIRT_COLORS[Math.floor(Math.random() * SHIRT_COLORS.length)],
+      hairStyle: hairStyles[Math.floor(Math.random() * hairStyles.length)],
       x: spawnX,
       y: sidewalkY,
       path: [
