@@ -72,6 +72,13 @@ const HAIR_STYLE_OPTIONS: { id: HairStyle; label: string }[] = [
   { id: 'curly', label: 'Cacheado' },
 ];
 
+const formatCookTime = (sec: number): string => {
+  if (sec < 60) return `${sec}s`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return s === 0 ? `${m}m` : `${m}m ${s}s`;
+};
+
 const FURNITURE_FILTERS: { id: 'all' | FurnitureKind; label: string }[] = [
   { id: 'all', label: 'Todos' },
   { id: 'stove', label: 'Fogões' },
@@ -227,7 +234,7 @@ export const Modals: React.FC<ModalsProps> = ({
                       <p className="card-desc">{r.description}</p>
 
                       <div className="recipe-stats-pills">
-                        <span className="r-pill">⏱️ {r.cookTimeSec}s</span>
+                        <span className="r-pill">⏱️ {formatCookTime(r.cookTimeSec)}</span>
                         <span className="r-pill">🍽️ {r.portions}x</span>
                         <span className="r-pill profit">💰 +{netProfit}🪙</span>
                       </div>

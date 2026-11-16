@@ -9,9 +9,9 @@ export interface ExpansionTier {
 
 export const EXPANSION_TIERS: ExpansionTier[] = [
   { gridSize: 8, label: 'Salão Inicial (8x8)', price: 0, unlockLevel: 1 },
-  { gridSize: 10, label: 'Expansão Médio (10x10)', price: 350, unlockLevel: 2 },
-  { gridSize: 12, label: 'Expansão Grande (12x12)', price: 850, unlockLevel: 4 },
-  { gridSize: 14, label: 'Mega Bistrô (14x14)', price: 1800, unlockLevel: 6 },
+  { gridSize: 10, label: 'Expansão Médio (10x10)', price: 480, unlockLevel: 2 },
+  { gridSize: 12, label: 'Expansão Grande (12x12)', price: 1250, unlockLevel: 4 },
+  { gridSize: 14, label: 'Mega Bistrô (14x14)', price: 2800, unlockLevel: 6 },
 ];
 
 export const FURNITURE_CATALOG: FurnitureCatalogItem[] = [

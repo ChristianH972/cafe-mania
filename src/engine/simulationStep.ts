@@ -155,8 +155,8 @@ function stepStoves(state: GameState, dt: number, effects: SimulationEffects): v
         soundEngine.playCookReady();
       }
     } else if (f.stove.status === 'ready') {
-      // Forgiving 50s window before burning
-      f.stove.burnProgress += dt / 50;
+      // Forgiving 90s window before burning
+      f.stove.burnProgress += dt / 90;
       if (f.stove.burnProgress >= 1) {
         f.stove.status = 'burnt';
         f.stove.burnProgress = 1;
@@ -591,8 +591,8 @@ function stepCounters(state: GameState, dt: number, effects: SimulationEffects):
   for (const f of state.furniture) {
     if (!f.counter || f.counter.portions <= 0 || f.counter.spoiled) continue;
     const current = f.counter.freshness ?? 1;
-    // 180s window for dishes on the counter before spoiling
-    const next = current - dt / 180;
+    // 360s (6 min) window for dishes on the counter before spoiling
+    const next = current - dt / 360;
     if (next <= 0) {
       f.counter.freshness = 0;
       f.counter.spoiled = true;

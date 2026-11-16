@@ -6,7 +6,7 @@ import { GameState, OfflineReport, PlacedFurniture } from '../types/game';
 const STORAGE_KEY = 'cafe_mania_2010_save_v2';
 
 export function xpForNextLevel(level: number): number {
-  return Math.floor(60 * Math.pow(1.38, level - 1));
+  return Math.floor(140 * Math.pow(1.45, level - 1));
 }
 
 export function computeBuzz(furniture: PlacedFurniture[]): number {
@@ -111,7 +111,7 @@ export function createInitialState(): GameState {
 
   return {
     cafeName: 'Café Mania Retrô',
-    coins: 450,
+    coins: 260,
     cash: 6,
     xp: 0,
     level: 1,
@@ -196,7 +196,7 @@ export function simulateOfflineProgress(state: GameState, now = Date.now()): Off
 
   // 2. Serve offline customers from counters
   const maxOfflineCustomers = Math.floor(elapsedSec / 12);
-  let remainingToServe = Math.min(maxOfflineCustomers, 30);
+  let remainingToServe = Math.min(maxOfflineCustomers, 75);
 
   for (const f of state.furniture) {
     if (!f.counter || f.counter.portions <= 0 || !f.counter.recipeId || remainingToServe <= 0) {
@@ -259,6 +259,15 @@ export function loadGameState(): { state: GameState; offlineReport: OfflineRepor
     const parsed = JSON.parse(raw) as GameState;
     if (!parsed || !Array.isArray(parsed.furniture)) return null;
     if (typeof parsed.rating !== 'number') parsed.rating = 78;
+
+    // Merge newly added quests into existing saves
+    if (Array.isArray(parsed.quests)) {
+      for (const iq of INITIAL_QUESTS) {
+        if (!parsed.quests.some((q) => q.id === iq.id)) {
+          parsed.quests.push({ ...iq });
+        }
+      }
+    }
 
     // Migrate legacy saves without separate chairs to 1x1 table + chair
     const hasAnyChair = parsed.furniture.some((f) => f.chair);
