@@ -1516,6 +1516,22 @@ function drawFurnitureItem(
       ctx.lineTo(sx + 5, sy - 13 + ((flow + 3) % 6) * 0.4);
       ctx.stroke();
     }
+  } else if (item.kind === 'rug') {
+    // Walkable floor rug / zone tile sitting flush on the floor
+    if (item.id === 'rug_kitchen_white') {
+      drawIsoDiamond(ctx, sx, sy, TILE_W * 0.98, TILE_H * 0.98, '#f8f9f9', '#d0d7de', 1.2);
+      drawIsoDiamond(ctx, sx, sy + 2, TILE_W * 0.82, TILE_H * 0.82, '#eef2f5', '#dce3e8', 0.8);
+    } else if (item.id === 'rug_checker_bistro') {
+      drawIsoDiamond(ctx, sx, sy + 1, TILE_W * 0.92, TILE_H * 0.92, '#2c3e50', '#d4ac0d', 1.4);
+      drawIsoDiamond(ctx, sx, sy + 4, TILE_W * 0.56, TILE_H * 0.56, '#fdfefe');
+    } else if (item.id === 'rug_red_vip') {
+      drawIsoDiamond(ctx, sx, sy + 1, TILE_W * 0.94, TILE_H * 0.94, '#c0392b', '#f1c40f', 2);
+      drawIsoDiamond(ctx, sx, sy + 4, TILE_W * 0.62, TILE_H * 0.62, '#a93226', '#f7dc6f', 1);
+    } else {
+      // Classic 2010 orange runner rug
+      drawIsoDiamond(ctx, sx, sy + 1, TILE_W * 0.94, TILE_H * 0.94, '#e67e22', '#d35400', 1.5);
+      drawIsoDiamond(ctx, sx, sy + 4, TILE_W * 0.62, TILE_H * 0.62, '#f8c471', '#e67e22', 1);
+    }
   }
 }
 
@@ -1940,6 +1956,21 @@ export function renderCafeScene(params: RenderParams): void {
     }
   }
 
+  // Walkable floor rugs rendered flat on top of floor tiles (underneath furniture & characters)
+  for (const f of furniture) {
+    if (getCatalogItem(f.catalogId)?.kind !== 'rug') continue;
+    drawFurnitureItem(
+      ctx,
+      f,
+      originX,
+      originY,
+      timeSec,
+      f.instanceId === selectedFurnitureId,
+      params.isNeighborView,
+      furniture
+    );
+  }
+
   // Welcome door mat inside the entrance at (doorX, 0)
   const doorPos = gridToScreen(doorX, 0, originX, originY);
   drawIsoDiamond(ctx, doorPos.sx, doorPos.sy + 3, TILE_W * 0.72, TILE_H * 0.72, '#c0392b', '#f1c40f', 2);
@@ -1949,6 +1980,12 @@ export function renderCafeScene(params: RenderParams): void {
   ctx.fillText('ABERTO', doorPos.sx, doorPos.sy + TILE_H / 2 + 5);
 
   // Hover tile highlight
+  const placingIsRug = placingCatalogId ? getCatalogItem(placingCatalogId)?.kind === 'rug' : false;
+  const movingIsRug = selectedFurnitureId
+    ? getCatalogItem(furniture.find((f) => f.instanceId === selectedFurnitureId)?.catalogId ?? '')?.kind === 'rug'
+    : false;
+  const hoverIsRug = placingCatalogId ? placingIsRug : movingIsRug;
+
   if (hoverTile && hoverTile.x >= 0 && hoverTile.y >= 0 && hoverTile.x < gridSize && hoverTile.y < gridSize) {
     const { sx, sy } = gridToScreen(hoverTile.x, hoverTile.y, originX, originY);
     const valid = isPlacementValid(
@@ -1956,7 +1993,8 @@ export function renderCafeScene(params: RenderParams): void {
       hoverTile.y,
       gridSize,
       furniture,
-      selectedFurnitureId
+      selectedFurnitureId,
+      hoverIsRug
     );
     const highlightColor =
       placingCatalogId || editMode
@@ -1972,6 +2010,7 @@ export function renderCafeScene(params: RenderParams): void {
   const drawables: Drawable[] = [];
 
   for (const f of furniture) {
+    if (getCatalogItem(f.catalogId)?.kind === 'rug') continue;
     drawables.push({
       depth: f.x + f.y + 0.01,
       draw: () =>

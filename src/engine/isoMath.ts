@@ -1,3 +1,4 @@
+import { getCatalogItem } from '../data/catalog';
 import { GridPos, PlacedFurniture } from '../types/game';
 
 export const TILE_W = 68;
@@ -45,6 +46,7 @@ export function findPath(
 
   const blocked = new Set<string>();
   for (const f of furniture) {
+    if (getCatalogItem(f.catalogId)?.kind === 'rug') continue;
     blocked.add(`${f.x},${f.y}`);
   }
   if (allowGoalBlocked) {
@@ -100,7 +102,11 @@ export function findBestAdjacentTile(
   gridSize: number,
   furniture: PlacedFurniture[]
 ): GridPos {
-  const blocked = new Set<string>(furniture.map((f) => `${f.x},${f.y}`));
+  const blocked = new Set<string>(
+    furniture
+      .filter((f) => getCatalogItem(f.catalogId)?.kind !== 'rug')
+      .map((f) => `${f.x},${f.y}`)
+  );
   const candidates = [
     { x: targetX + 1, y: targetY },
     { x: targetX, y: targetY + 1 },
@@ -129,12 +135,26 @@ export function isPlacementValid(
   y: number,
   gridSize: number,
   furniture: PlacedFurniture[],
-  ignoreInstanceId?: string | null
+  ignoreInstanceId?: string | null,
+  isRug = false
 ): boolean {
   if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) return false;
+  if (isRug) {
+    return !furniture.some(
+      (f) =>
+        f.x === x &&
+        f.y === y &&
+        f.instanceId !== ignoreInstanceId &&
+        getCatalogItem(f.catalogId)?.kind === 'rug'
+    );
+  }
   const doorX = Math.floor(gridSize / 2);
   if (x === doorX && y === 0) return false; // Keep entrance doorway clear
   return !furniture.some(
-    (f) => f.x === x && f.y === y && f.instanceId !== ignoreInstanceId
+    (f) =>
+      f.x === x &&
+      f.y === y &&
+      f.instanceId !== ignoreInstanceId &&
+      getCatalogItem(f.catalogId)?.kind !== 'rug'
   );
 }

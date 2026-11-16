@@ -79,6 +79,7 @@ const FURNITURE_FILTERS: { id: 'all' | FurnitureKind; label: string }[] = [
   { id: 'table', label: 'Mesas' },
   { id: 'chair', label: 'Cadeiras' },
   { id: 'decor', label: 'Decoração' },
+  { id: 'rug', label: 'Tapetes' },
 ];
 
 interface ModalsProps {

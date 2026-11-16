@@ -285,16 +285,20 @@ export function App() {
       return;
     }
 
-    const occupied = s.furniture.find((f) => f.x === pos.x && f.y === pos.y);
+    const occupied =
+      s.furniture.find(
+        (f) => f.x === pos.x && f.y === pos.y && getCatalogItem(f.catalogId)?.kind !== 'rug'
+      ) ?? s.furniture.find((f) => f.x === pos.x && f.y === pos.y);
 
     // 2. Placing newly bought furniture
     if (placingCatalogId) {
-      if (!isPlacementValid(pos.x, pos.y, s.gridSize, s.furniture)) {
-        showToast('Espaço ocupado ou bloqueando a porta!');
-        return;
-      }
       const cat = getCatalogItem(placingCatalogId);
       if (!cat) return;
+      const isRug = cat.kind === 'rug';
+      if (!isPlacementValid(pos.x, pos.y, s.gridSize, s.furniture, null, isRug)) {
+        showToast(isRug ? 'Já existe um tapete nesse piso!' : 'Espaço ocupado ou bloqueando a porta!');
+        return;
+      }
       if (s.coins < cat.price) {
         showToast('Moedas insuficientes!');
         setPlacingCatalogId(null);
@@ -348,11 +352,12 @@ export function App() {
         );
         soundEngine.playClick();
       } else if (selectedFurnitureId) {
-        if (!isPlacementValid(pos.x, pos.y, s.gridSize, s.furniture, selectedFurnitureId)) {
-          showToast('Não é possível posicionar na porta!');
+        const moving = s.furniture.find((f) => f.instanceId === selectedFurnitureId);
+        const movingIsRug = moving ? getCatalogItem(moving.catalogId)?.kind === 'rug' : false;
+        if (!isPlacementValid(pos.x, pos.y, s.gridSize, s.furniture, selectedFurnitureId, movingIsRug)) {
+          showToast(movingIsRug ? 'Já existe um tapete nesse piso!' : 'Não é possível posicionar na porta!');
           return;
         }
-        const moving = s.furniture.find((f) => f.instanceId === selectedFurnitureId);
         if (moving) {
           moving.x = pos.x;
           moving.y = pos.y;

@@ -10,7 +10,8 @@ export type FurnitureKind =
   | 'counter'
   | 'table'
   | 'chair'
-  | 'decor';
+  | 'decor'
+  | 'rug';
 
 export interface Recipe {
   id: string;
