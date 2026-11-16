@@ -299,13 +299,17 @@ function drawWalls(
   ctx.textAlign = 'center';
   ctx.fillText('CAFÉ MANIA', dMidX, dMidY - doorH - 16);
 
-  // Windows on right wall flanking the door
+  // Windows on right wall flanking the door (2010 style with curtains & reflection)
   const windowPositions = [1.3, gridSize - 2.3].filter(
     (wx) => wx >= 0.5 && wx + 1.4 <= gridSize && (wx + 1.4 <= doorX - 0.2 || wx >= doorX + 1.2)
   );
   for (const wx of windowPositions) {
     const p1 = gridToScreen(wx, 0, originX, originY);
     const p2 = gridToScreen(wx + 1.4, 0, originX, originY);
+    const midX = (p1.sx + p2.sx) / 2;
+    const midY = (p1.sy + p2.sy) / 2;
+
+    // Outer window frame
     ctx.beginPath();
     ctx.moveTo(p1.sx, p1.sy - 66);
     ctx.lineTo(p2.sx, p2.sy - 66);
@@ -318,17 +322,44 @@ function drawWalls(
     ctx.lineWidth = 3;
     ctx.stroke();
 
-    const midX = (p1.sx + p2.sx) / 2;
-    const midY = (p1.sy + p2.sy) / 2;
+    // Sky reflection streak
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(p1.sx + 6, p1.sy - 32);
+    ctx.lineTo(p1.sx + 18, p1.sy - 60);
+    ctx.stroke();
+
+    // Cute side curtain drapes
+    ctx.fillStyle = 'rgba(231, 76, 60, 0.72)';
+    ctx.beginPath();
+    ctx.moveTo(p1.sx + 1, p1.sy - 65);
+    ctx.lineTo(p1.sx + 10, p1.sy - 61);
+    ctx.lineTo(p1.sx + 7, p1.sy - 27);
+    ctx.lineTo(p1.sx + 1, p1.sy - 27);
+    ctx.closePath();
+    ctx.fill();
+
+    // Cross muntins
     ctx.beginPath();
     ctx.moveTo(midX, midY - 66);
     ctx.lineTo(midX, midY - 26);
+    ctx.moveTo(p1.sx, p1.sy - 46);
+    ctx.lineTo(p2.sx, p2.sy - 46);
     ctx.strokeStyle = '#fff8ee';
     ctx.lineWidth = 2;
     ctx.stroke();
+
+    // Wooden sill
+    ctx.strokeStyle = '#8b5a2b';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(p1.sx - 2, p1.sy - 25);
+    ctx.lineTo(p2.sx + 2, p2.sy - 25);
+    ctx.stroke();
   }
 
-  // Menu blackboard on left wall with chalk lines
+  // Menu blackboard on left wall with 3D frame, chalk text & eraser ledge
   const m1 = gridToScreen(0, 2.2, originX, originY);
   const m2 = gridToScreen(0, 4.4, originX, originY);
   ctx.beginPath();
@@ -339,18 +370,28 @@ function drawWalls(
   ctx.closePath();
   ctx.fillStyle = '#2d3b32';
   ctx.fill();
-  ctx.strokeStyle = '#d4af37';
-  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = '#b9770e';
+  ctx.lineWidth = 3;
   ctx.stroke();
 
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+  // Chalk lines
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
   ctx.lineWidth = 1.5;
-  for (const offset of [54, 46, 38]) {
+  for (const offset of [55, 47, 39]) {
     ctx.beginPath();
-    ctx.moveTo(m1.sx - 6, m1.sy - offset + 4);
-    ctx.lineTo(m2.sx + 6, m2.sy - offset - 4);
+    ctx.moveTo(m1.sx - 7, m1.sy - offset + 4);
+    ctx.lineTo(m2.sx + 7, m2.sy - offset - 4);
     ctx.stroke();
   }
+  // Chalk ledge + chalk piece
+  ctx.strokeStyle = '#8b5a2b';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(m1.sx, m1.sy - 27);
+  ctx.lineTo(m2.sx, m2.sy - 27);
+  ctx.stroke();
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect((m1.sx + m2.sx) / 2 - 4, (m1.sy + m2.sy) / 2 - 30, 5, 2);
 }
 
 function drawExterior(
@@ -524,8 +565,11 @@ function drawFurnitureItem(
       ctx.fill();
     }
 
-    // Oven window (flips face based on rotation)
-    ctx.fillStyle = f.stove?.status === 'cooking' ? '#ff9f43' : '#2c3e50';
+    // Oven window (flips face based on rotation, warm pulsing glow when cooking)
+    const ovenGlow = f.stove?.status === 'cooking'
+      ? `rgba(255, ${Math.round(145 + Math.sin(timeSec * 8) * 25)}, 55, 1)`
+      : '#2c3e50';
+    ctx.fillStyle = ovenGlow;
     ctx.beginPath();
     if (f.rotation % 2 === 0) {
       ctx.moveTo(sx - 16, sy - 6);
@@ -540,6 +584,18 @@ function drawFurnitureItem(
     }
     ctx.closePath();
     ctx.fill();
+    // Oven glass reflection
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    if (f.rotation % 2 === 0) {
+      ctx.moveTo(sx - 14, sy + 3);
+      ctx.lineTo(sx - 8, sy - 1);
+    } else {
+      ctx.moveTo(sx + 14, sy + 3);
+      ctx.lineTo(sx + 8, sy - 1);
+    }
+    ctx.stroke();
     // Oven handle
     ctx.strokeStyle = '#bdc3c7';
     ctx.lineWidth = 1.8;
@@ -556,21 +612,72 @@ function drawFurnitureItem(
     // Cooking pan & status
     if (f.stove && f.stove.status !== 'idle') {
       const recipe = getRecipeById(f.stove.recipeId);
-      // Pan with metallic rim highlight
-      ctx.fillStyle = '#2d3436';
-      ctx.beginPath();
-      ctx.ellipse(sx + 2, topCenterY - 1, 9, 5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#95a5a6';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      // Pan handle
-      ctx.strokeStyle = '#1e272e';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(sx + 9, topCenterY - 1);
-      ctx.lineTo(sx + 15, topCenterY + 2);
-      ctx.stroke();
+      const cat = recipe?.category;
+
+      // Animated blue/orange flame ring when cooking
+      if (f.stove.status === 'cooking') {
+        const flicker = Math.sin(timeSec * 18) * 1.2;
+        ctx.fillStyle = '#3498db';
+        ctx.beginPath();
+        ctx.ellipse(sx + 2, topCenterY + 1, 7 + flicker * 0.4, 3.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#f39c12';
+        ctx.beginPath();
+        ctx.ellipse(sx + 2, topCenterY + 0.5, 4.5, 2.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (cat === 'Bebidas') {
+        // Kettle / Coffee pot
+        ctx.fillStyle = '#bdc3c7';
+        ctx.beginPath();
+        ctx.ellipse(sx + 2, topCenterY - 2, 7, 4.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(sx - 4, topCenterY - 10, 12, 8);
+        ctx.fillStyle = '#7f8c8d';
+        ctx.beginPath();
+        ctx.ellipse(sx + 2, topCenterY - 10, 6, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (cat === 'Doces') {
+        // Baking tin / cake pan
+        ctx.fillStyle = '#d4ac0d';
+        ctx.beginPath();
+        ctx.ellipse(sx + 2, topCenterY - 3, 9, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#f7dc6f';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      } else if (cat === 'Pratos') {
+        // Deep stockpot with two handles & lid
+        ctx.fillStyle = '#5d6d7e';
+        ctx.fillRect(sx - 6, topCenterY - 8, 16, 7);
+        ctx.beginPath();
+        ctx.ellipse(sx + 2, topCenterY - 1, 8, 4.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#aab7b8';
+        ctx.beginPath();
+        ctx.ellipse(sx + 2, topCenterY - 8, 8, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#2c3e50';
+        ctx.beginPath();
+        ctx.arc(sx + 2, topCenterY - 10, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Classic frying pan
+        ctx.fillStyle = '#2d3436';
+        ctx.beginPath();
+        ctx.ellipse(sx + 2, topCenterY - 1, 9, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#95a5a6';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.strokeStyle = '#1e272e';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(sx + 9, topCenterY - 1);
+        ctx.lineTo(sx + 15, topCenterY + 2);
+        ctx.stroke();
+      }
 
       if (f.stove.status === 'cooking') {
         // Progress bar above stove
@@ -677,6 +784,19 @@ function drawFurnitureItem(
     ctx.arc(sx - 6, sy + 2, 1.5, 0, Math.PI * 2);
     ctx.arc(sx + 6, sy + 2, 1.5, 0, Math.PI * 2);
     ctx.fill();
+
+    // Classic 2010 stack of clean plates tucked on lower shelf
+    ctx.fillStyle = '#2c3e50';
+    ctx.fillRect(sx - 13, sy + 1, 10, 9);
+    for (let pi = 0; pi < 3; pi++) {
+      ctx.fillStyle = '#ecf0f1';
+      ctx.beginPath();
+      ctx.ellipse(sx - 8, sy + 8 - pi * 2.2, 4.2, 1.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#bdc3c7';
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+    }
 
     if (f.counter && f.counter.portions > 0 && f.counter.recipeId) {
       const recipe = getRecipeById(f.counter.recipeId);
@@ -910,14 +1030,41 @@ function drawFurnitureItem(
 
     if (f.chair?.hasFood && f.chair.servedRecipeId) {
       const recipe = getRecipeById(f.chair.servedRecipeId);
-      ctx.font = '15px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(recipe?.emoji ?? '🍽️', plateX, plateY);
-    } else if (f.chair?.dirty) {
-      ctx.fillStyle = '#bdc3c7';
+      // Ceramic plate + silver cutlery + cup on table edge
+      ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.ellipse(plateX, plateY, 6, 3.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(plateX, plateY + 1, 7.5, 4, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.strokeStyle = '#dcdde1';
+      ctx.lineWidth = 0.9;
+      ctx.stroke();
+      // Fork & knife ticks
+      ctx.strokeStyle = '#95a5a6';
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(plateX - 9, plateY - 1);
+      ctx.lineTo(plateX - 9, plateY + 3);
+      ctx.moveTo(plateX + 9, plateY - 1);
+      ctx.lineTo(plateX + 9, plateY + 3);
+      ctx.stroke();
+
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(recipe?.emoji ?? '🍽️', plateX, plateY + 1);
+    } else if (f.chair?.dirty) {
+      // Dirty plate with crumbs & crumpled napkin
+      ctx.fillStyle = '#d5dbdb';
+      ctx.beginPath();
+      ctx.ellipse(plateX, plateY, 7, 3.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#a04000';
+      ctx.beginPath();
+      ctx.arc(plateX - 1.5, plateY, 1.1, 0, Math.PI * 2);
+      ctx.arc(plateX + 2, plateY - 0.5, 0.9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#f8f9f9';
+      ctx.fillRect(plateX + 4, plateY - 2, 4, 3);
+
       const pulse = Math.sin(timeSec * 6) * 2;
       ctx.fillStyle = '#f39c12';
       ctx.beginPath();
@@ -930,12 +1077,16 @@ function drawFurnitureItem(
     }
   } else if (item.kind === 'decor') {
     if (item.id === 'decor_plant') {
-      drawIsoBox(ctx, sx, sy + 6, 22, 12, 12, '#a04000', '#d35400', '#a04000');
+      drawIsoBox(ctx, sx, sy + 6, 22, 12, 12, '#b9770e', '#d35400', '#a04000');
+      ctx.fillStyle = '#1e8449';
+      ctx.beginPath();
+      ctx.arc(sx, sy - 11, 13, 0, Math.PI * 2);
+      ctx.fill();
       ctx.fillStyle = '#27ae60';
       ctx.beginPath();
-      ctx.arc(sx, sy - 12, 13, 0, Math.PI * 2);
-      ctx.arc(sx - 8, sy - 8, 9, 0, Math.PI * 2);
-      ctx.arc(sx + 8, sy - 8, 9, 0, Math.PI * 2);
+      ctx.arc(sx - 7, sy - 9, 8.5, 0, Math.PI * 2);
+      ctx.arc(sx + 7, sy - 9, 8.5, 0, Math.PI * 2);
+      ctx.arc(sx, sy - 16, 9, 0, Math.PI * 2);
       ctx.fill();
     } else if (item.id === 'decor_jukebox') {
       drawIsoBox(ctx, sx, sy + 4, 34, 18, 34, '#f1c40f', '#2980b9', '#1f618d');
@@ -947,18 +1098,37 @@ function drawFurnitureItem(
       ctx.textAlign = 'center';
       ctx.fillText('🎵', sx + Math.sin(timeSec * 3) * 4, sy - 38);
     } else if (item.id === 'decor_espresso') {
-      drawIsoBox(ctx, sx, sy + 4, 34, 18, 22, '#bdc3c7', '#c0392b', '#962d22');
-      ctx.font = '14px sans-serif';
+      drawIsoBox(ctx, sx, sy + 4, 34, 18, 22, '#ecf0f1', '#c0392b', '#962d22');
+      // Drip tray + cup + green power LED
+      ctx.fillStyle = '#2c3e50';
+      ctx.fillRect(sx - 6, sy - 4, 12, 5);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(sx - 2, sy - 5, 4, 4);
+      ctx.fillStyle = '#2ecc71';
+      ctx.beginPath();
+      ctx.arc(sx + 6, sy - 10, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.font = '13px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('☕', sx, sy - 16);
+      ctx.fillText('☕', sx, sy - 20 + Math.sin(timeSec * 3) * 1.5);
     } else {
-      // Chocolate fountain
+      // Animated Chocolate fountain
       drawIsoBox(ctx, sx, sy + 4, 36, 18, 12, '#d4af37', '#b7950b', '#9a7d0a');
+      const flow = (timeSec * 10) % 6;
       ctx.fillStyle = '#5c3317';
       ctx.beginPath();
       ctx.ellipse(sx, sy - 12, 12, 6, 0, 0, Math.PI * 2);
       ctx.ellipse(sx, sy - 21, 8, 4, 0, 0, Math.PI * 2);
       ctx.fill();
+      // Shimmering chocolate drip lines
+      ctx.strokeStyle = '#8b4513';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(sx - 5, sy - 20);
+      ctx.lineTo(sx - 6, sy - 13 + flow * 0.4);
+      ctx.moveTo(sx + 4, sy - 20);
+      ctx.lineTo(sx + 5, sy - 13 + ((flow + 3) % 6) * 0.4);
+      ctx.stroke();
     }
   }
 }
