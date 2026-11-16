@@ -494,9 +494,9 @@ function drawExterior(
 ) {
   const doorX = Math.floor(gridSize / 2);
 
-  // Extended neighborhood grass around the café
-  for (let gx = -6; gx <= gridSize + 6; gx++) {
-    for (let gy = -6; gy <= gridSize + 4; gy++) {
+  // Extended neighborhood grass around the café (fills viewport even when zoomed out)
+  for (let gx = -12; gx <= gridSize + 12; gx++) {
+    for (let gy = -10; gy <= gridSize + 10; gy++) {
       if (gx >= 0 && gx < gridSize && gy >= 0 && gy < gridSize) continue;
       const gPos = gridToScreen(gx, gy, originX, originY);
       const isAlt = (gx + gy) % 2 === 0;
@@ -512,14 +512,14 @@ function drawExterior(
   }
 
   // Top-right sidewalk along y = -1 (where customers walk in from!)
-  for (let ix = -6; ix <= gridSize + 6; ix++) {
+  for (let ix = -12; ix <= gridSize + 12; ix++) {
     const sw = gridToScreen(ix, -1, originX, originY);
     const tone = ix % 2 === 0 ? '#e5e9f0' : '#d8dee9';
     drawIsoDiamond(ctx, sw.sx, sw.sy, TILE_W, TILE_H, tone, 'rgba(0,0,0,0.08)', 1);
   }
 
   // Asphalt avenue along y = -2, -3, -4
-  for (let ix = -6; ix <= gridSize + 6; ix++) {
+  for (let ix = -12; ix <= gridSize + 12; ix++) {
     for (let ry = -4; ry <= -2; ry++) {
       const road = gridToScreen(ix, ry, originX, originY);
       drawIsoDiamond(ctx, road.sx, road.sy, TILE_W, TILE_H, '#4b525c', 'rgba(255,255,255,0.02)', 1);
@@ -527,15 +527,15 @@ function drawExterior(
   }
 
   // Opposite sidewalk across the street at y = -5
-  for (let ix = -6; ix <= gridSize + 6; ix++) {
+  for (let ix = -12; ix <= gridSize + 12; ix++) {
     const opp = gridToScreen(ix, -5, originX, originY);
     const tone = ix % 2 === 0 ? '#dfe4ea' : '#ced6e0';
     drawIsoDiamond(ctx, opp.sx, opp.sy, TILE_W, TILE_H, tone, 'rgba(0,0,0,0.08)', 1);
   }
 
   // 3D curb edge along café sidewalk
-  const curbStart = gridToScreen(-6, -1, originX, originY);
-  const curbEnd = gridToScreen(gridSize + 6, -1, originX, originY);
+  const curbStart = gridToScreen(-12, -1, originX, originY);
+  const curbEnd = gridToScreen(gridSize + 12, -1, originX, originY);
   ctx.strokeStyle = '#9aa5b1';
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -562,7 +562,7 @@ function drawExterior(
   ctx.fill();
 
   // Yellow dashed road divider along y = -2.5
-  for (let ix = -5; ix <= gridSize + 5; ix += 2) {
+  for (let ix = -11; ix <= gridSize + 11; ix += 2) {
     const d1 = gridToScreen(ix + 0.15, -2.55, originX, originY);
     const d2 = gridToScreen(ix + 1.05, -2.55, originX, originY);
     ctx.strokeStyle = '#f1c40f';
@@ -573,10 +573,21 @@ function drawExterior(
     ctx.stroke();
   }
 
-  // White crosswalk stripes in front of the door
-  for (let lane = 0; lane < 3; lane++) {
-    const cw = gridToScreen(doorX + 0.5, -2 - lane * 0.85, originX, originY);
-    drawIsoDiamond(ctx, cw.sx, cw.sy + 5, TILE_W * 0.24, TILE_H * 0.48, '#ecf0f1');
+  // Crisp isometric zebra crosswalk stripes across the street in front of the door
+  for (let lane = 0; lane < 4; lane++) {
+    const ry = -1.65 - lane * 0.68;
+    const zA = gridToScreen(doorX + 0.05, ry, originX, originY);
+    const zB = gridToScreen(doorX + 0.95, ry, originX, originY);
+    const zC = gridToScreen(doorX + 0.95, ry - 0.34, originX, originY);
+    const zD = gridToScreen(doorX + 0.05, ry - 0.34, originX, originY);
+    ctx.fillStyle = '#ecf0f1';
+    ctx.beginPath();
+    ctx.moveTo(zA.sx, zA.sy + 14);
+    ctx.lineTo(zB.sx, zB.sy + 14);
+    ctx.lineTo(zC.sx, zC.sy + 14);
+    ctx.lineTo(zD.sx, zD.sy + 14);
+    ctx.closePath();
+    ctx.fill();
   }
 
   // Helper to draw a true elongated 3D isometric car along the X avenue axis
@@ -720,38 +731,58 @@ function drawExterior(
   ) => {
     const gy = -6.2;
     const widY = 1.6;
+    const wallY = gy + widY / 2;
     // Main building body + roof cornice
     drawPrism(gx, gy, lenX, widY, -14, 52, roofCol, wallLeft, wallRight);
     drawPrism(gx, gy, lenX + 0.14, widY + 0.14, 38, 6, wallTop, shadeColor(roofCol, -18), shadeColor(roofCol, -30));
 
-    // Glass storefront door + display window on front (+y) face
-    const dA = gridToScreen(gx - 0.35, gy + widY / 2 + 0.02, originX, originY);
-    const dB = gridToScreen(gx + 0.35, gy + widY / 2 + 0.02, originX, originY);
+    // Glass storefront door + side display window flush on the front (+y) isometric wall
+    const dA = gridToScreen(gx - 0.55, wallY, originX, originY);
+    const dB = gridToScreen(gx + 0.05, wallY, originX, originY);
     ctx.fillStyle = '#bfe9ff';
     ctx.beginPath();
-    ctx.moveTo(dA.sx, dA.sy + 12);
-    ctx.lineTo(dB.sx, dB.sy + 12);
-    ctx.lineTo(dB.sx, dB.sy - 14);
-    ctx.lineTo(dA.sx, dA.sy - 14);
+    ctx.moveTo(dA.sx, dA.sy + 14);
+    ctx.lineTo(dB.sx, dB.sy + 14);
+    ctx.lineTo(dB.sx, dB.sy - 13);
+    ctx.lineTo(dA.sx, dA.sy - 13);
     ctx.closePath();
     ctx.fill();
     ctx.strokeStyle = '#5c3317';
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Striped awning above storefront
+    // Side shop display window
+    const wA = gridToScreen(gx + 0.22, wallY, originX, originY);
+    const wB = gridToScreen(gx + 0.78, wallY, originX, originY);
+    ctx.fillStyle = '#dff9fb';
+    ctx.beginPath();
+    ctx.moveTo(wA.sx, wA.sy + 4);
+    ctx.lineTo(wB.sx, wB.sy + 4);
+    ctx.lineTo(wB.sx, wB.sy - 12);
+    ctx.lineTo(wA.sx, wA.sy - 12);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#fff8ee';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    // True 3D isometric striped awning projecting out over the sidewalk
     const steps = 6;
     for (let i = 0; i < steps; i++) {
       const t0 = i / steps;
       const t1 = (i + 1) / steps;
-      const a0 = gridToScreen(gx - lenX * 0.4 + lenX * 0.8 * t0, gy + widY / 2 + 0.05, originX, originY);
-      const a1 = gridToScreen(gx - lenX * 0.4 + lenX * 0.8 * t1, gy + widY / 2 + 0.05, originX, originY);
+      const x0 = gx - lenX * 0.44 + lenX * 0.88 * t0;
+      const x1 = gx - lenX * 0.44 + lenX * 0.88 * t1;
+      const in0 = gridToScreen(x0, wallY, originX, originY);
+      const in1 = gridToScreen(x1, wallY, originX, originY);
+      const out0 = gridToScreen(x0, wallY + 0.34, originX, originY);
+      const out1 = gridToScreen(x1, wallY + 0.34, originX, originY);
       ctx.fillStyle = i % 2 === 0 ? awningA : awningB;
       ctx.beginPath();
-      ctx.moveTo(a0.sx, a0.sy - 16);
-      ctx.lineTo(a1.sx, a1.sy - 16);
-      ctx.lineTo(a1.sx - 4, a1.sy - 8);
-      ctx.lineTo(a0.sx - 4, a0.sy - 8);
+      ctx.moveTo(in0.sx, in0.sy - 17);
+      ctx.lineTo(in1.sx, in1.sy - 17);
+      ctx.lineTo(out1.sx, out1.sy - 13);
+      ctx.lineTo(out0.sx, out0.sy - 13);
       ctx.closePath();
       ctx.fill();
     }
@@ -762,14 +793,14 @@ function drawExterior(
   drawNeighborShop(gridSize - 0.7, 2.2, '#f1c40f', '#fef9e7', '#f5e7bd', '#b7950b', '#c0392b', '#fff8ee');
 
   // Animated 2010 cartoon cars driving along the avenue
-  const car1X = ((timeSec * 1.9) % (gridSize + 12)) - 6;
+  const car1X = ((timeSec * 1.9) % (gridSize + 18)) - 9;
   drawDetailedCar(car1X, -2.35, 1, '#e74c3c', '#c0392b', '#962d22');
 
-  const car2X = gridSize + 6 - ((timeSec * 1.45 + 5) % (gridSize + 12));
+  const car2X = gridSize + 9 - ((timeSec * 1.45 + 5) % (gridSize + 18));
   drawDetailedCar(car2X, -3.7, -1, '#3498db', '#2980b9', '#1f618d');
 
-  // Street lamps with warm glow halo & layered trees
-  for (const lx of [1, gridSize - 1]) {
+  // Street lamps flanking outside the café walls + layered trees
+  for (const lx of [-0.6, gridSize + 0.4]) {
     const lamp = gridToScreen(lx, -1.25, originX, originY);
     ctx.fillStyle = '#2c3e50';
     ctx.fillRect(lamp.sx - 2, lamp.sy - 36, 4, 42);
@@ -2390,10 +2421,11 @@ export function renderCharacterPreview(
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, width, height);
 
-  const scale = 1.25;
+  const isCompactHud = height <= 50;
+  const scale = isCompactHud ? 0.84 : 1.25;
   ctx.scale(scale, scale);
   const cx = width / (2 * scale);
-  const cy = (height * 0.56) / scale;
+  const cy = (height * (isCompactHud ? 0.68 : 0.56)) / scale;
 
   drawCharacter(
     ctx,
