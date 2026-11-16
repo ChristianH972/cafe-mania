@@ -741,96 +741,124 @@ function drawFurnitureItem(
   }
 
   if (item.kind === 'stove') {
-    const bodyColor = item.color;
-    drawIsoBox(
-      ctx,
-      sx,
-      sy + 4,
-      TILE_W * 0.78,
-      TILE_H * 0.78,
-      26,
-      '#484c56',
-      bodyColor,
-      shadeColor(bodyColor, -22)
-    );
+    const isOld = item.id === 'stove_retro';
+    const isLux = item.id === 'stove_gold';
+    const sw = TILE_W * (isLux ? 0.86 : 0.78);
+    const sh = TILE_H * (isLux ? 0.86 : 0.78);
+    const sH = isLux ? 28 : 26;
+    const baseY = sy + 4;
 
-    // Burners on top (4 classic grates with metallic crossbars)
-    const topCenterY = sy + 4 - 26 + (TILE_H * 0.78) / 2;
+    const topCol = isLux ? '#dfe6e9' : isOld ? '#7d8a82' : '#3d4856';
+    const leftCol = isLux ? '#bdc3c7' : isOld ? '#6c7a72' : '#2c3e50';
+    const rightCol = isLux ? '#95a5a6' : isOld ? '#525e57' : '#1e272e';
+
+    // Subtle feet
+    ctx.fillStyle = '#2d3436';
+    ctx.fillRect(sx - sw * 0.42, baseY + sh * 0.48, 3, 3);
+    ctx.fillRect(sx - 1.5, baseY + sh - 1, 3, 3);
+    ctx.fillRect(sx + sw * 0.42 - 3, baseY + sh * 0.48, 3, 3);
+
+    drawIsoBox(ctx, sx, baseY, sw, sh, sH, topCol, leftCol, rightCol);
+
+    // Rust patches on the Old Stove
+    if (isOld) {
+      drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, 'left', 0.12, 0.28, 0.15, 0.32, 'rgba(110, 59, 31, 0.65)');
+      drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, 'left', 0.68, 0.86, 0.45, 0.62, 'rgba(110, 59, 31, 0.55)');
+      drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, 'right', 0.2, 0.45, 0.2, 0.42, 'rgba(110, 59, 31, 0.6)');
+    }
+
+    // Backguard / control strip on top-left edge
+    if (!isLux) {
+      ctx.fillStyle = isOld ? '#5e6b63' : '#74b9ff';
+      ctx.beginPath();
+      ctx.moveTo(sx - sw / 2 + 2, baseY - sH + sh / 2);
+      ctx.lineTo(sx - 2, baseY - sH + 2);
+      ctx.lineTo(sx - 2, baseY - sH - 4);
+      ctx.lineTo(sx - sw / 2 + 2, baseY - sH + sh / 2 - 6);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Burners on top (6 for Luxury, 4 for Old/New)
+    const topCenterY = baseY - sH + sh / 2;
     const isCooking = f.stove?.status === 'cooking';
-    const burnerCoords: [number, number][] = [
-      [-8, -2],
-      [8, 2],
-      [0, -6],
-      [0, 5],
-    ];
+    const burnerCoords: [number, number][] = isLux
+      ? [
+          [-11, -2],
+          [0, -6],
+          [11, -2],
+          [-6, 3],
+          [5, 6],
+          [0, 0],
+        ]
+      : [
+          [-8, -2],
+          [8, 2],
+          [0, -6],
+          [0, 5],
+        ];
     for (let bi = 0; bi < burnerCoords.length; bi++) {
       const [bx, by] = burnerCoords[bi];
-      ctx.fillStyle = isCooking && bi === 1 ? '#e67e22' : '#222';
+      ctx.fillStyle = isCooking && bi === 1 ? '#3498db' : isOld ? '#3d312a' : '#222';
       ctx.beginPath();
-      ctx.ellipse(sx + bx, topCenterY + by, 5, 2.7, 0, 0, Math.PI * 2);
+      ctx.ellipse(sx + bx, topCenterY + by, 4.6, 2.5, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = '#555';
+      ctx.strokeStyle = isLux ? '#2d3436' : '#555';
       ctx.lineWidth = 0.8;
       ctx.beginPath();
       ctx.moveTo(sx + bx - 4, topCenterY + by);
       ctx.lineTo(sx + bx + 4, topCenterY + by);
-      ctx.moveTo(sx + bx, topCenterY + by - 2.2);
-      ctx.lineTo(sx + bx, topCenterY + by + 2.2);
+      ctx.moveTo(sx + bx, topCenterY + by - 2);
+      ctx.lineTo(sx + bx, topCenterY + by + 2);
       ctx.stroke();
     }
 
-    // Control knobs on front panel
-    ctx.fillStyle = '#ecf0f1';
-    const knobSide = f.rotation % 2 === 0 ? -1 : 1;
-    for (let k = 0; k < 3; k++) {
-      ctx.beginPath();
-      ctx.arc(sx + knobSide * (6 + k * 4.5), sy - 11 + k * 2.2, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Oven window (flips face based on rotation, warm pulsing glow when cooking)
-    const ovenGlow = f.stove?.status === 'cooking'
+    // Front face (left face when rotation % 2 === 0, right otherwise)
+    const faceSide: 'left' | 'right' = f.rotation % 2 === 0 ? 'left' : 'right';
+    const ovenGlow = isCooking
       ? `rgba(255, ${Math.round(145 + Math.sin(timeSec * 8) * 25)}, 55, 1)`
-      : '#2c3e50';
-    ctx.fillStyle = ovenGlow;
-    ctx.beginPath();
-    if (f.rotation % 2 === 0) {
-      ctx.moveTo(sx - 16, sy - 6);
-      ctx.lineTo(sx - 4, sy);
-      ctx.lineTo(sx - 4, sy + 11);
-      ctx.lineTo(sx - 16, sy + 5);
+      : isOld
+        ? '#3b4248'
+        : '#576574';
+
+    if (isLux) {
+      // Double oven doors with golden handles + digital timer display + golden knobs
+      drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, faceSide, 0.08, 0.46, 0.08, 0.62, '#7f8c8d', '#2d3436');
+      drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, faceSide, 0.13, 0.41, 0.14, 0.5, ovenGlow);
+      drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, faceSide, 0.54, 0.92, 0.08, 0.62, '#7f8c8d', '#2d3436');
+      drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, faceSide, 0.59, 0.87, 0.14, 0.5, ovenGlow);
+      // Golden handles & top rail
+      drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, faceSide, 0.12, 0.42, 0.54, 0.59, '#f1c40f');
+      drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, faceSide, 0.58, 0.88, 0.54, 0.59, '#f1c40f');
+      drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, faceSide, 0.04, 0.96, 0.9, 0.96, '#f1c40f');
+      // Digital clock display in center
+      drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, faceSide, 0.43, 0.57, 0.72, 0.84, '#1e272e');
+      drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, faceSide, 0.45, 0.55, 0.75, 0.81, '#2ecc71');
+      // Golden knobs
+      for (const u of [0.14, 0.25, 0.36, 0.64, 0.75, 0.86]) {
+        drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, faceSide, u - 0.03, u + 0.03, 0.73, 0.83, '#f1c40f', '#b7950b');
+      }
+      // Hanging utensils on right side!
+      const sideOther: 'left' | 'right' = faceSide === 'left' ? 'right' : 'left';
+      drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, sideOther, 0.15, 0.85, 0.72, 0.78, '#f1c40f');
+      for (const u of [0.28, 0.5, 0.72]) {
+        drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, sideOther, u - 0.03, u + 0.03, 0.32, 0.72, '#7f8c8d');
+      }
     } else {
-      ctx.moveTo(sx + 16, sy - 6);
-      ctx.lineTo(sx + 4, sy);
-      ctx.lineTo(sx + 4, sy + 11);
-      ctx.lineTo(sx + 16, sy + 5);
+      // Single oven door
+      const doorFrame = isOld ? '#5a4d44' : '#74b9ff';
+      drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, faceSide, 0.14, 0.86, 0.08, 0.62, doorFrame, '#2d3436');
+      drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, faceSide, 0.22, 0.78, 0.15, 0.52, ovenGlow);
+      // Handle
+      drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, faceSide, 0.24, 0.76, 0.55, 0.6, '#dfe6e9');
+      // 4 colored knobs (faded on Old Stove, vibrant on New Stove)
+      const knobColors = isOld
+        ? ['#a9605b', '#5b7a99', '#a8995b', '#997352']
+        : ['#3498db', '#e74c3c', '#2ecc71', '#f39c12'];
+      [0.2, 0.4, 0.6, 0.8].forEach((u, idx) => {
+        drawIsoFaceQuad(ctx, sx, baseY, sw, sh, sH, faceSide, u - 0.04, u + 0.04, 0.72, 0.84, knobColors[idx]);
+      });
     }
-    ctx.closePath();
-    ctx.fill();
-    // Oven glass reflection
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    if (f.rotation % 2 === 0) {
-      ctx.moveTo(sx - 14, sy + 3);
-      ctx.lineTo(sx - 8, sy - 1);
-    } else {
-      ctx.moveTo(sx + 14, sy + 3);
-      ctx.lineTo(sx + 8, sy - 1);
-    }
-    ctx.stroke();
-    // Oven handle
-    ctx.strokeStyle = '#bdc3c7';
-    ctx.lineWidth = 1.8;
-    ctx.beginPath();
-    if (f.rotation % 2 === 0) {
-      ctx.moveTo(sx - 15, sy - 7);
-      ctx.lineTo(sx - 5, sy - 2);
-    } else {
-      ctx.moveTo(sx + 15, sy - 7);
-      ctx.lineTo(sx + 5, sy - 2);
-    }
-    ctx.stroke();
 
     // Cooking pan & status
     if (f.stove && f.stove.status !== 'idle') {
@@ -850,7 +878,33 @@ function drawFurnitureItem(
         ctx.fill();
       }
 
-      if (cat === 'Bebidas') {
+      if (isLux) {
+        // Luxury stove gets copper pot + tall steel stockpot!
+        ctx.fillStyle = '#d35400';
+        ctx.fillRect(sx - 12, topCenterY - 8, 11, 6);
+        ctx.beginPath();
+        ctx.ellipse(sx - 6.5, topCenterY - 8, 5.5, 2.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#bdc3c7';
+        ctx.fillRect(sx + 2, topCenterY - 9, 11, 8);
+        ctx.fillStyle = '#ecf0f1';
+        ctx.beginPath();
+        ctx.ellipse(sx + 7.5, topCenterY - 9, 5.5, 2.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (isOld) {
+        // Battered gray pot with handle
+        ctx.fillStyle = '#636e72';
+        ctx.fillRect(sx - 5, topCenterY - 7, 13, 6);
+        ctx.beginPath();
+        ctx.ellipse(sx + 1.5, topCenterY - 7, 6.5, 3.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#2d3436';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(sx + 7, topCenterY - 5);
+        ctx.lineTo(sx + 14, topCenterY - 2);
+        ctx.stroke();
+      } else if (cat === 'Bebidas') {
         // Kettle / Coffee pot
         ctx.fillStyle = '#bdc3c7';
         ctx.beginPath();
@@ -861,45 +915,21 @@ function drawFurnitureItem(
         ctx.beginPath();
         ctx.ellipse(sx + 2, topCenterY - 10, 6, 3, 0, 0, Math.PI * 2);
         ctx.fill();
-      } else if (cat === 'Doces') {
-        // Baking tin / cake pan
-        ctx.fillStyle = '#d4ac0d';
-        ctx.beginPath();
-        ctx.ellipse(sx + 2, topCenterY - 3, 9, 5, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#f7dc6f';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      } else if (cat === 'Pratos') {
-        // Deep stockpot with two handles & lid
-        ctx.fillStyle = '#5d6d7e';
-        ctx.fillRect(sx - 6, topCenterY - 8, 16, 7);
-        ctx.beginPath();
-        ctx.ellipse(sx + 2, topCenterY - 1, 8, 4.2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#aab7b8';
-        ctx.beginPath();
-        ctx.ellipse(sx + 2, topCenterY - 8, 8, 4, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#2c3e50';
-        ctx.beginPath();
-        ctx.arc(sx + 2, topCenterY - 10, 1.8, 0, Math.PI * 2);
-        ctx.fill();
       } else {
-        // Classic frying pan
+        // Brand new shiny red pot on the New Stove!
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillRect(sx - 6, topCenterY - 8, 15, 7);
+        ctx.beginPath();
+        ctx.ellipse(sx + 1.5, topCenterY - 1, 7.5, 3.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ff6b6b';
+        ctx.beginPath();
+        ctx.ellipse(sx + 1.5, topCenterY - 8, 7.5, 3.6, 0, 0, Math.PI * 2);
+        ctx.fill();
         ctx.fillStyle = '#2d3436';
         ctx.beginPath();
-        ctx.ellipse(sx + 2, topCenterY - 1, 9, 5, 0, 0, Math.PI * 2);
+        ctx.arc(sx + 1.5, topCenterY - 10, 1.8, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = '#95a5a6';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.strokeStyle = '#1e272e';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(sx + 9, topCenterY - 1);
-        ctx.lineTo(sx + 15, topCenterY + 2);
-        ctx.stroke();
       }
 
       if (f.stove.status === 'cooking') {
