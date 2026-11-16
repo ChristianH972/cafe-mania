@@ -111,10 +111,22 @@ export function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [editMode, selectedFurnitureId]);
 
-  // Auto-save every 4 seconds
+  // Auto-save & spice recharge every 4 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      saveGameState(stateRef.current);
+      const s = stateRef.current;
+      const charges = s.spiceCharges ?? 3;
+      if (charges < 3) {
+        const now = Date.now();
+        const last = s.lastSpiceAt ?? now;
+        const gained = Math.floor((now - last) / 75000);
+        if (gained > 0) {
+          s.spiceCharges = Math.min(3, charges + gained);
+          s.lastSpiceAt = s.spiceCharges >= 3 ? now : last + gained * 75000;
+          setUiState({ ...s });
+        }
+      }
+      saveGameState(s);
     }, 4000);
     return () => clearInterval(interval);
   }, []);
@@ -197,12 +209,12 @@ export function App() {
     return () => cancelAnimationFrame(rafId);
   }, [editMode, selectedFurnitureId, placingCatalogId, visitingNeighbor]);
 
-  const getGridFromMouse = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const getGridFromPoint = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
-    const rawX = e.clientX - rect.left;
-    const rawY = e.clientY - rect.top;
+    const rawX = clientX - rect.left;
+    const rawY = clientY - rect.top;
     const { zoom, panX, panY } = cameraRef.current;
     const sx = (rawX - rect.width / 2 - panX) / zoom + rect.width / 2;
     const sy = (rawY - rect.height / 2 - panY) / zoom + rect.height / 2;
@@ -217,7 +229,7 @@ export function App() {
     cameraRef.current.zoom = Math.min(2.1, Math.max(0.7, cameraRef.current.zoom + delta));
   };
 
-  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleCanvasPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     dragRef.current = {
       active: true,
       startX: e.clientX,
@@ -228,7 +240,7 @@ export function App() {
     };
   };
 
-  const handleCanvasMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleCanvasPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (dragRef.current.active) {
       const dx = e.clientX - dragRef.current.startX;
       const dy = e.clientY - dragRef.current.startY;
@@ -238,10 +250,10 @@ export function App() {
         cameraRef.current.panY = dragRef.current.origPanY + dy;
       }
     }
-    hoverTileRef.current = getGridFromMouse(e);
+    hoverTileRef.current = getGridFromPoint(e.clientX, e.clientY);
   };
 
-  const handleCanvasMouseUp = () => {
+  const handleCanvasPointerUp = () => {
     dragRef.current.active = false;
   };
 
@@ -250,7 +262,7 @@ export function App() {
       dragRef.current.moved = false;
       return;
     }
-    const pos = getGridFromMouse(e);
+    const pos = getGridFromPoint(e.clientX, e.clientY);
     if (!pos) return;
     const s = stateRef.current;
     if (pos.x < 0 || pos.y < 0 || pos.x >= s.gridSize || pos.y >= s.gridSize) return;
@@ -299,13 +311,19 @@ export function App() {
         showToast(isRug ? 'Já existe um tapete nesse piso!' : 'Espaço ocupado ou bloqueando a porta!');
         return;
       }
-      if (s.coins < cat.price) {
+      const stockCount = s.inventory?.[cat.id] ?? 0;
+      const fromStock = stockCount > 0;
+      if (!fromStock && s.coins < cat.price) {
         showToast('Moedas insuficientes!');
         setPlacingCatalogId(null);
         return;
       }
 
-      s.coins -= cat.price;
+      if (fromStock) {
+        s.inventory = { ...(s.inventory ?? {}), [cat.id]: stockCount - 1 };
+      } else {
+        s.coins -= cat.price;
+      }
       const newFurn: PlacedFurniture = {
         instanceId: nextId('furn'),
         catalogId: cat.id,
@@ -335,12 +353,14 @@ export function App() {
 
       s.furniture.push(newFurn);
       s.buzz = computeBuzz(s.furniture);
-      s.stats.furnitureBought += 1;
-      syncQuests(s);
+      if (!fromStock) {
+        s.stats.furnitureBought += 1;
+        syncQuests(s);
+      }
       soundEngine.playBuy();
       setPlacingCatalogId(null);
       setUiState({ ...s });
-      showToast(`${cat.name} posicionado!`);
+      showToast(fromStock ? `📦 ${cat.name} colocado do estoque!` : `${cat.name} posicionado!`);
       return;
     }
 
@@ -609,6 +629,60 @@ export function App() {
     showToast(`Móvel vendido por ${refund} 🪙`);
   };
 
+  const handleStoreSelected = () => {
+    if (!selectedFurnitureId) return;
+    const s = stateRef.current;
+    const idx = s.furniture.findIndex((f) => f.instanceId === selectedFurnitureId);
+    if (idx === -1) return;
+    const item = s.furniture[idx];
+    if (item.stove?.status === 'cooking') {
+      showToast('Espere terminar ou descarte o prato antes de guardar!');
+      return;
+    }
+    if (item.chair?.occupiedByCustomerId || item.table?.occupiedByCustomerId) {
+      showToast('Espere o cliente sair antes de guardar!');
+      return;
+    }
+    s.furniture.splice(idx, 1);
+    const inv = s.inventory ?? {};
+    s.inventory = { ...inv, [item.catalogId]: (inv[item.catalogId] ?? 0) + 1 };
+    s.buzz = computeBuzz(s.furniture);
+    setSelectedFurnitureId(null);
+    soundEngine.playClick();
+    setUiState({ ...s });
+    showToast('📦 Móvel guardado no estoque!');
+  };
+
+  const handleUseSpice = () => {
+    const s = stateRef.current;
+    const charges = s.spiceCharges ?? 3;
+    if (charges <= 0) {
+      showToast('🧂 Tempero recarregando! Aguarde um pouquinho.');
+      return;
+    }
+    const cookingStove =
+      s.furniture.find((f) => f.stove?.status === 'cooking' && !f.stove.spicedByNeighbor) ??
+      s.furniture.find((f) => f.stove?.status === 'cooking');
+    if (!cookingStove?.stove) {
+      showToast('Cozinhe algo no fogão para aplicar o Tempero!');
+      return;
+    }
+    s.spiceCharges = charges - 1;
+    if (charges >= 3) {
+      s.lastSpiceAt = Date.now();
+    }
+    cookingStove.stove.spicedByNeighbor = true;
+    cookingStove.stove.progress = Math.min(1, cookingStove.stove.progress + 0.35);
+    if (cookingStove.stove.progress >= 1) {
+      cookingStove.stove.status = 'ready';
+      cookingStove.stove.burnProgress = 0;
+    }
+    addXpAndCoins(s, 0, 15, effectsRef.current, cookingStove.x, cookingStove.y);
+    soundEngine.playCookReady();
+    setUiState({ ...s });
+    showToast('🧂 Tempero aplicado! +35% preparo e +15 XP!');
+  };
+
   const claimableQuestsCount = uiState.quests.filter(
     (q) => !q.claimed && q.currentCount >= q.targetCount
   ).length;
@@ -661,12 +735,24 @@ export function App() {
           ref={canvasRef}
           className="iso-canvas"
           onWheel={handleCanvasWheel}
-          onMouseDown={handleCanvasMouseDown}
-          onMouseMove={handleCanvasMove}
-          onMouseUp={handleCanvasMouseUp}
-          onMouseLeave={handleCanvasMouseUp}
+          onPointerDown={handleCanvasPointerDown}
+          onPointerMove={handleCanvasPointerMove}
+          onPointerUp={handleCanvasPointerUp}
+          onPointerCancel={handleCanvasPointerUp}
           onClick={handleCanvasClick}
         />
+
+        {!visitingNeighbor && (
+          <button
+            className={`spice-widget ${(uiState.spiceCharges ?? 3) > 0 ? 'ready' : 'empty'}`}
+            onClick={handleUseSpice}
+            title="Tempero Clássico: acelera o fogão em 35% + 15 XP (recarrega a cada 75s)"
+          >
+            <span className="spice-icon">🧂</span>
+            <span className="spice-label">Tempero</span>
+            <span className="spice-badge">{uiState.spiceCharges ?? 3}/3</span>
+          </button>
+        )}
 
         <div className="camera-controls">
           <button
@@ -708,6 +794,9 @@ export function App() {
             ✏️ Clique em um piso vazio para mover:
             <button onClick={handleRotateSelected} title="Atalho: R">
               🔄 Girar (R)
+            </button>
+            <button className="store-btn" onClick={handleStoreSelected}>
+              📦 Guardar
             </button>
             <button className="sell-btn" onClick={handleSellSelected}>
               Vender (50%)

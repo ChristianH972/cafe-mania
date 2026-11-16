@@ -79,8 +79,9 @@ const formatCookTime = (sec: number): string => {
   return s === 0 ? `${m}m` : `${m}m ${s}s`;
 };
 
-const FURNITURE_FILTERS: { id: 'all' | FurnitureKind; label: string }[] = [
+const FURNITURE_FILTERS: { id: 'all' | 'stock' | FurnitureKind; label: string }[] = [
   { id: 'all', label: 'Todos' },
+  { id: 'stock', label: '📦 Estoque' },
   { id: 'stove', label: 'Fogões' },
   { id: 'counter', label: 'Balcões' },
   { id: 'table', label: 'Mesas' },
@@ -127,7 +128,7 @@ export const Modals: React.FC<ModalsProps> = ({
 }) => {
   const [recipeCategory, setRecipeCategory] = useState<string>('Todos');
   const [shopTab, setShopTab] = useState<'furniture' | 'styles' | 'expansions' | 'staff'>('furniture');
-  const [furnitureFilter, setFurnitureFilter] = useState<'all' | FurnitureKind>('all');
+  const [furnitureFilter, setFurnitureFilter] = useState<'all' | 'stock' | FurnitureKind>('all');
 
   if (!activeModal) return null;
 
@@ -310,27 +311,42 @@ export const Modals: React.FC<ModalsProps> = ({
               {shopTab === 'furniture' && (
                 <>
                   <div className="subfilter-tabs">
-                    {FURNITURE_FILTERS.map((cat) => (
-                      <button
-                        key={cat.id}
-                        className={`subtab-pill ${furnitureFilter === cat.id ? 'active' : ''}`}
-                        onClick={() => setFurnitureFilter(cat.id)}
-                      >
-                        {cat.label}
-                      </button>
-                    ))}
+                    {FURNITURE_FILTERS.map((cat) => {
+                      const totalStock = Object.values(state.inventory ?? {}).reduce(
+                        (acc, n) => acc + n,
+                        0
+                      );
+                      const label =
+                        cat.id === 'stock' && totalStock > 0
+                          ? `📦 Estoque (${totalStock})`
+                          : cat.label;
+                      return (
+                        <button
+                          key={cat.id}
+                          className={`subtab-pill ${furnitureFilter === cat.id ? 'active' : ''}`}
+                          onClick={() => setFurnitureFilter(cat.id)}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
                   </div>
                   <div className="cards-grid">
-                    {FURNITURE_CATALOG.filter(
-                      (item) => furnitureFilter === 'all' || item.kind === furnitureFilter
-                    ).map((item) => {
-                      const locked = state.level < item.unlockLevel;
-                      const canAfford = state.coins >= item.price;
+                    {FURNITURE_CATALOG.filter((item) => {
+                      if (furnitureFilter === 'all') return true;
+                      if (furnitureFilter === 'stock') return (state.inventory?.[item.id] ?? 0) > 0;
+                      return item.kind === furnitureFilter;
+                    }).map((item) => {
+                      const stockCount = state.inventory?.[item.id] ?? 0;
+                      const locked = state.level < item.unlockLevel && stockCount === 0;
+                      const canAfford = state.coins >= item.price || stockCount > 0;
                       return (
                         <div key={item.id} className={`item-card shop-card ${locked ? 'locked' : ''}`}>
                           <div className="card-top">
                             <span className="buzz-tag">+{item.buzzBonus}% Buzz</span>
-                            {item.speedMultiplier && item.speedMultiplier > 1 ? (
+                            {stockCount > 0 ? (
+                              <span className="stock-tag">📦 {stockCount}x</span>
+                            ) : item.speedMultiplier && item.speedMultiplier > 1 ? (
                               <span className="speed-tag">⚡ {item.speedMultiplier}x</span>
                             ) : (
                               <span className="level-mini-tag">Nv. {item.unlockLevel}</span>
@@ -342,8 +358,10 @@ export const Modals: React.FC<ModalsProps> = ({
                           <h3>{item.name}</h3>
                           <p className="card-desc">{item.description}</p>
                           <div className="shop-price-row">
-                            <span className="price-pill">🪙 {item.price}</span>
-                            {item.cashPrice ? (
+                            <span className="price-pill">
+                              {stockCount > 0 ? '✨ Grátis do Estoque' : `🪙 ${item.price}`}
+                            </span>
+                            {stockCount === 0 && item.cashPrice ? (
                               <span className="price-pill cash">ou 💵 {item.cashPrice}</span>
                             ) : null}
                           </div>
@@ -353,11 +371,13 @@ export const Modals: React.FC<ModalsProps> = ({
                             </div>
                           ) : (
                             <button
-                              className="btn-glossy btn-primary"
+                              className={`btn-glossy ${stockCount > 0 ? 'btn-blue' : 'btn-primary'}`}
                               disabled={!canAfford}
                               onClick={() => onStartPlaceFurniture(item.id)}
                             >
-                              Comprar · {item.price} 🪙
+                              {stockCount > 0
+                                ? `📦 Colocar (${stockCount})`
+                                : `Comprar · ${item.price} 🪙`}
                             </button>
                           )}
                         </div>

@@ -2155,6 +2155,8 @@ export function renderCafeScene(params: RenderParams): void {
       if (c.mood === 'angry') bubbleBg = '#fab1a0';
     } else if (c.state === 'eating') {
       bubble = '😋';
+    } else if (c.state === 'paying') {
+      bubble = '💳';
     } else if (c.state === 'leaving' && c.mood === 'happy') {
       bubble = '❤️';
     }

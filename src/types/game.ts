@@ -92,6 +92,7 @@ export type CustomerState =
   | 'walking_to_seat'
   | 'waiting_food'
   | 'eating'
+  | 'paying'
   | 'leaving';
 
 export type HairStyle = 'classic' | 'spiky' | 'bob' | 'ponytail' | 'curly';
@@ -109,6 +110,8 @@ export interface Customer {
   state: CustomerState;
   targetTableId: string | null;
   targetChairId?: string | null;
+  targetCashierId?: string | null;
+  pendingBill?: { coins: number; xp: number } | null;
   desiredRecipeId: string | null;
   waitTimer: number;
   maxWaitTimer: number;
@@ -244,4 +247,7 @@ export interface GameState {
   speed: 1 | 2 | 0;
   soundEnabled: boolean;
   lastSavedAt: number;
+  inventory?: Record<string, number>;
+  spiceCharges?: number;
+  lastSpiceAt?: number;
 }

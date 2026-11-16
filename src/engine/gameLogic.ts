@@ -107,6 +107,13 @@ export function createInitialState(): GameState {
       y: 1,
       rotation: 0,
     },
+    {
+      instanceId: 'cashier_1',
+      catalogId: 'decor_cashier',
+      x: 6,
+      y: 2,
+      rotation: 0,
+    },
   ];
 
   return {
@@ -166,6 +173,9 @@ export function createInitialState(): GameState {
     speed: 1,
     soundEnabled: true,
     lastSavedAt: Date.now(),
+    inventory: {},
+    spiceCharges: 3,
+    lastSpiceAt: Date.now(),
   };
 }
 

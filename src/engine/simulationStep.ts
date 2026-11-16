@@ -315,12 +315,82 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
           chair.chair.dirty = true;
         }
 
+        // Check if there is a Cash Register (decor_cashier) for customer to walk up & pay
+        const cashiers = state.furniture.filter((f) => f.catalogId === 'decor_cashier');
+        if (cashiers.length > 0) {
+          const nearestCashier = cashiers.sort(
+            (a, b) => Math.hypot(a.x - c.x, a.y - c.y) - Math.hypot(b.x - c.x, b.y - c.y)
+          )[0];
+          const adjCash = findBestAdjacentTile(
+            c.x,
+            c.y,
+            nearestCashier.x,
+            nearestCashier.y,
+            state.gridSize,
+            state.furniture
+          );
+          c.state = 'paying';
+          c.mood = 'happy';
+          c.targetCashierId = nearestCashier.instanceId;
+          c.pendingBill = { coins: earned + 3, xp: xpEarned };
+          c.path = findPath(c.x, c.y, adjCash.x, adjCash.y, state.gridSize, state.furniture, false);
+        } else {
+          state.stats.customersServed += 1;
+          state.rating = Math.min(105, Math.round((state.rating + 1.5) * 10) / 10);
+          addXpAndCoins(state, earned, xpEarned, effects, c.x, c.y);
+          soundEngine.playCoin();
+
+          // Celebratory heart & golden sparkles
+          effects.particles.push(
+            {
+              id: nextId('p'),
+              gridX: c.x,
+              gridY: c.y,
+              offsetZ: 34,
+              vx: 0,
+              vy: 0,
+              vz: 24,
+              color: '#e84393',
+              size: 4.5,
+              life: 1.0,
+              maxLife: 1.0,
+              kind: 'heart',
+            },
+            {
+              id: nextId('p'),
+              gridX: c.x - 0.15,
+              gridY: c.y,
+              offsetZ: 26,
+              vx: -0.2,
+              vy: 0,
+              vz: 20,
+              color: '#f1c40f',
+              size: 3.5,
+              life: 0.75,
+              maxLife: 0.75,
+              kind: 'sparkle',
+            }
+          );
+
+          c.state = 'leaving';
+          c.mood = 'happy';
+          const exitX = Math.random() < 0.5 ? -2.5 : state.gridSize + 2.5;
+          c.path = [
+            ...findPath(c.x, c.y, doorX, doorY, state.gridSize, state.furniture, true),
+            { x: doorX, y: -1 },
+            { x: exitX, y: -1 },
+          ];
+        }
+      }
+    } else if (c.state === 'paying') {
+      const arrived = moveAlongPath(c, dt, 2.7);
+      if (arrived) {
+        const bill = c.pendingBill ?? { coins: 15, xp: 4 };
         state.stats.customersServed += 1;
         state.rating = Math.min(105, Math.round((state.rating + 1.5) * 10) / 10);
-        addXpAndCoins(state, earned, xpEarned, effects, c.x, c.y);
+        addXpAndCoins(state, bill.coins, bill.xp, effects, c.x, c.y);
         soundEngine.playCoin();
 
-        // Celebratory heart & golden sparkles
         effects.particles.push(
           {
             id: nextId('p'),
@@ -338,24 +408,10 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
           },
           {
             id: nextId('p'),
-            gridX: c.x - 0.15,
+            gridX: c.x + 0.12,
             gridY: c.y,
             offsetZ: 26,
-            vx: -0.2,
-            vy: 0,
-            vz: 20,
-            color: '#f1c40f',
-            size: 3.5,
-            life: 0.75,
-            maxLife: 0.75,
-            kind: 'sparkle',
-          },
-          {
-            id: nextId('p'),
-            gridX: c.x + 0.15,
-            gridY: c.y,
-            offsetZ: 26,
-            vx: 0.2,
+            vx: 0.18,
             vy: 0,
             vz: 22,
             color: '#f1c40f',
@@ -366,6 +422,8 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
           }
         );
 
+        c.pendingBill = null;
+        c.targetCashierId = null;
         c.state = 'leaving';
         c.mood = 'happy';
         const exitX = Math.random() < 0.5 ? -2.5 : state.gridSize + 2.5;
