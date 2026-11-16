@@ -1,9 +1,43 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X, Lock, Star, Sparkles, Gift, Eye, UserPlus } from 'lucide-react';
 import { EXPANSION_TIERS, FLOOR_STYLES, FURNITURE_CATALOG, WALL_STYLES } from '../data/catalog';
 import { RECIPES, getMasteryStars } from '../data/recipes';
-import { GameState, Neighbor, Recipe } from '../types/game';
+import { renderFurnitureThumbnail, renderStyleThumbnail } from '../engine/isoRenderer';
+import { FurnitureKind, GameState, Neighbor, Recipe } from '../types/game';
 import { ActiveModal } from './BottomDock';
+
+const FurnitureThumbnail: React.FC<{ catalogId: string }> = ({ catalogId }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    if (canvasRef.current) {
+      renderFurnitureThumbnail(canvasRef.current, catalogId);
+    }
+  }, [catalogId]);
+  return <canvas ref={canvasRef} className="shop-thumb-canvas" />;
+};
+
+const StyleThumbnail: React.FC<{
+  kind: 'floor' | 'wall';
+  primary: string;
+  secondary: string;
+}> = ({ kind, primary, secondary }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    if (canvasRef.current) {
+      renderStyleThumbnail(canvasRef.current, kind, primary, secondary);
+    }
+  }, [kind, primary, secondary]);
+  return <canvas ref={canvasRef} className="shop-thumb-canvas" />;
+};
+
+const FURNITURE_FILTERS: { id: 'all' | FurnitureKind; label: string }[] = [
+  { id: 'all', label: 'Todos' },
+  { id: 'stove', label: 'Fogões' },
+  { id: 'counter', label: 'Balcões' },
+  { id: 'table', label: 'Mesas' },
+  { id: 'chair', label: 'Cadeiras' },
+  { id: 'decor', label: 'Decoração' },
+];
 
 interface ModalsProps {
   activeModal: ActiveModal;
@@ -38,6 +72,7 @@ export const Modals: React.FC<ModalsProps> = ({
 }) => {
   const [recipeCategory, setRecipeCategory] = useState<string>('Todos');
   const [shopTab, setShopTab] = useState<'furniture' | 'styles' | 'expansions' | 'staff'>('furniture');
+  const [furnitureFilter, setFurnitureFilter] = useState<'all' | FurnitureKind>('all');
 
   if (!activeModal) return null;
 
@@ -154,38 +189,63 @@ export const Modals: React.FC<ModalsProps> = ({
               </div>
 
               {shopTab === 'furniture' && (
-                <div className="cards-grid">
-                  {FURNITURE_CATALOG.map((item) => {
-                    const locked = state.level < item.unlockLevel;
-                    const canAfford = state.coins >= item.price;
-                    return (
-                      <div key={item.id} className={`item-card ${locked ? 'locked' : ''}`}>
-                        <div className="card-top">
-                          <span
-                            className="color-swatch"
-                            style={{ background: item.color, borderColor: item.accentColor }}
-                          />
-                          <span className="buzz-tag">+{item.buzzBonus}% Buzz</span>
-                        </div>
-                        <h3>{item.name}</h3>
-                        <p className="card-desc">{item.description}</p>
-                        {locked ? (
-                          <div className="locked-tag">
-                            <Lock size={14} /> Nível {item.unlockLevel}
+                <>
+                  <div className="subfilter-tabs">
+                    {FURNITURE_FILTERS.map((cat) => (
+                      <button
+                        key={cat.id}
+                        className={`subtab-pill ${furnitureFilter === cat.id ? 'active' : ''}`}
+                        onClick={() => setFurnitureFilter(cat.id)}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="cards-grid">
+                    {FURNITURE_CATALOG.filter(
+                      (item) => furnitureFilter === 'all' || item.kind === furnitureFilter
+                    ).map((item) => {
+                      const locked = state.level < item.unlockLevel;
+                      const canAfford = state.coins >= item.price;
+                      return (
+                        <div key={item.id} className={`item-card shop-card ${locked ? 'locked' : ''}`}>
+                          <div className="card-top">
+                            <span className="buzz-tag">+{item.buzzBonus}% Buzz</span>
+                            {item.speedMultiplier && item.speedMultiplier > 1 ? (
+                              <span className="speed-tag">⚡ {item.speedMultiplier}x</span>
+                            ) : (
+                              <span className="level-mini-tag">Nv. {item.unlockLevel}</span>
+                            )}
                           </div>
-                        ) : (
-                          <button
-                            className="btn-glossy btn-primary"
-                            disabled={!canAfford}
-                            onClick={() => onStartPlaceFurniture(item.id)}
-                          >
-                            Comprar ({item.price} 🪙)
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                          <div className="shop-thumb-box">
+                            <FurnitureThumbnail catalogId={item.id} />
+                          </div>
+                          <h3>{item.name}</h3>
+                          <p className="card-desc">{item.description}</p>
+                          <div className="shop-price-row">
+                            <span className="price-pill">🪙 {item.price}</span>
+                            {item.cashPrice ? (
+                              <span className="price-pill cash">ou 💵 {item.cashPrice}</span>
+                            ) : null}
+                          </div>
+                          {locked ? (
+                            <div className="locked-tag">
+                              <Lock size={14} /> Nível {item.unlockLevel}
+                            </div>
+                          ) : (
+                            <button
+                              className="btn-glossy btn-primary"
+                              disabled={!canAfford}
+                              onClick={() => onStartPlaceFurniture(item.id)}
+                            >
+                              Comprar · {item.price} 🪙
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
 
               {shopTab === 'styles' && (
@@ -196,12 +256,20 @@ export const Modals: React.FC<ModalsProps> = ({
                       const active = state.floorStyle === fs.id;
                       const locked = state.level < fs.unlockLevel;
                       return (
-                        <div key={fs.id} className="item-card">
-                          <div className="style-preview">
-                            <span style={{ background: fs.primary }} />
-                            <span style={{ background: fs.secondary }} />
+                        <div key={fs.id} className={`item-card shop-card ${locked ? 'locked' : ''}`}>
+                          <div className="card-top">
+                            <span className="buzz-tag">Piso</span>
+                            <span className="level-mini-tag">Nv. {fs.unlockLevel}</span>
+                          </div>
+                          <div className="shop-thumb-box">
+                            <StyleThumbnail kind="floor" primary={fs.primary} secondary={fs.secondary} />
                           </div>
                           <h3>{fs.name}</h3>
+                          <div className="shop-price-row">
+                            <span className="price-pill">
+                              {fs.price === 0 ? '✨ Grátis' : `🪙 ${fs.price}`}
+                            </span>
+                          </div>
                           {locked ? (
                             <div className="locked-tag">
                               <Lock size={14} /> Nível {fs.unlockLevel}
@@ -212,7 +280,7 @@ export const Modals: React.FC<ModalsProps> = ({
                               disabled={active || state.coins < fs.price}
                               onClick={() => onBuyFloorStyle(fs.id)}
                             >
-                              {active ? 'Em Uso' : fs.price === 0 ? 'Aplicar' : `Comprar (${fs.price} 🪙)`}
+                              {active ? '✓ Em Uso' : fs.price === 0 ? 'Aplicar' : `Comprar · ${fs.price} 🪙`}
                             </button>
                           )}
                         </div>
@@ -226,12 +294,20 @@ export const Modals: React.FC<ModalsProps> = ({
                       const active = state.wallStyle === ws.id;
                       const locked = state.level < ws.unlockLevel;
                       return (
-                        <div key={ws.id} className="item-card">
-                          <div className="style-preview">
-                            <span style={{ background: ws.primary }} />
-                            <span style={{ background: ws.secondary }} />
+                        <div key={ws.id} className={`item-card shop-card ${locked ? 'locked' : ''}`}>
+                          <div className="card-top">
+                            <span className="buzz-tag">Parede</span>
+                            <span className="level-mini-tag">Nv. {ws.unlockLevel}</span>
+                          </div>
+                          <div className="shop-thumb-box">
+                            <StyleThumbnail kind="wall" primary={ws.primary} secondary={ws.secondary} />
                           </div>
                           <h3>{ws.name}</h3>
+                          <div className="shop-price-row">
+                            <span className="price-pill">
+                              {ws.price === 0 ? '✨ Grátis' : `🪙 ${ws.price}`}
+                            </span>
+                          </div>
                           {locked ? (
                             <div className="locked-tag">
                               <Lock size={14} /> Nível {ws.unlockLevel}
@@ -242,7 +318,7 @@ export const Modals: React.FC<ModalsProps> = ({
                               disabled={active || state.coins < ws.price}
                               onClick={() => onBuyWallStyle(ws.id)}
                             >
-                              {active ? 'Em Uso' : ws.price === 0 ? 'Aplicar' : `Comprar (${ws.price} 🪙)`}
+                              {active ? '✓ Em Uso' : ws.price === 0 ? 'Aplicar' : `Comprar · ${ws.price} 🪙`}
                             </button>
                           )}
                         </div>

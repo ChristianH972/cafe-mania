@@ -1329,3 +1329,125 @@ export function renderCafeScene(params: RenderParams): void {
 
   void topCorner;
 }
+
+export function renderFurnitureThumbnail(
+  canvas: HTMLCanvasElement,
+  catalogId: string,
+  width = 110,
+  height = 88
+): void {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, width, height);
+
+  const scale = 1.08;
+  ctx.scale(scale, scale);
+  const cx = width / (2 * scale);
+  const cy = (height * 0.48) / scale;
+
+  // Pedestal tile
+  drawIsoDiamond(ctx, cx, cy, TILE_W * 0.92, TILE_H * 0.92, '#f8e6ce', '#e2c39d', 1.2);
+
+  const dummy: PlacedFurniture = {
+    instanceId: 'preview',
+    catalogId,
+    x: 0,
+    y: 0,
+    rotation: 0,
+  };
+
+  drawFurnitureItem(ctx, dummy, cx, cy, 0, false, false, [dummy]);
+  ctx.restore();
+}
+
+export function renderStyleThumbnail(
+  canvas: HTMLCanvasElement,
+  kind: 'floor' | 'wall',
+  primary: string,
+  secondary: string,
+  width = 110,
+  height = 74
+): void {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, width, height);
+
+  if (kind === 'floor') {
+    const cx = width / 2;
+    const cy = 22;
+    const tw = 34;
+    const th = 17;
+    const tiles = [
+      { gx: 0, gy: 0, color: primary },
+      { gx: 1, gy: 0, color: secondary },
+      { gx: 0, gy: 1, color: secondary },
+      { gx: 1, gy: 1, color: primary },
+    ];
+    for (const t of tiles) {
+      const sx = cx + (t.gx - t.gy) * (tw / 2);
+      const sy = cy + (t.gx + t.gy) * (th / 2);
+      drawIsoDiamond(ctx, sx, sy, tw, th, t.color, 'rgba(0,0,0,0.12)', 1);
+    }
+  } else {
+    const cx = width / 2;
+    const baseY = 58;
+    const wallH = 38;
+    const dx = 34;
+    const dy = 17;
+
+    // Left wall face
+    ctx.beginPath();
+    ctx.moveTo(cx, baseY - wallH - dy);
+    ctx.lineTo(cx - dx, baseY - wallH);
+    ctx.lineTo(cx - dx, baseY);
+    ctx.lineTo(cx, baseY - dy);
+    ctx.closePath();
+    ctx.fillStyle = primary;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.stroke();
+
+    // Right wall face
+    ctx.beginPath();
+    ctx.moveTo(cx, baseY - wallH - dy);
+    ctx.lineTo(cx + dx, baseY - wallH);
+    ctx.lineTo(cx + dx, baseY);
+    ctx.lineTo(cx, baseY - dy);
+    ctx.closePath();
+    ctx.fillStyle = shadeColor(primary, -12);
+    ctx.fill();
+    ctx.stroke();
+
+    // Baseboard trim
+    ctx.beginPath();
+    ctx.moveTo(cx - dx, baseY - 7);
+    ctx.lineTo(cx, baseY - dy - 7);
+    ctx.lineTo(cx + dx, baseY - 7);
+    ctx.lineTo(cx + dx, baseY);
+    ctx.lineTo(cx, baseY - dy);
+    ctx.lineTo(cx - dx, baseY);
+    ctx.closePath();
+    ctx.fillStyle = secondary;
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
