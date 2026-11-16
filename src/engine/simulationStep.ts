@@ -319,6 +319,52 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
         addXpAndCoins(state, earned, xpEarned, effects, c.x, c.y);
         soundEngine.playCoin();
 
+        // Celebratory heart & golden sparkles
+        effects.particles.push(
+          {
+            id: nextId('p'),
+            gridX: c.x,
+            gridY: c.y,
+            offsetZ: 34,
+            vx: 0,
+            vy: 0,
+            vz: 24,
+            color: '#e84393',
+            size: 4.5,
+            life: 1.0,
+            maxLife: 1.0,
+            kind: 'heart',
+          },
+          {
+            id: nextId('p'),
+            gridX: c.x - 0.15,
+            gridY: c.y,
+            offsetZ: 26,
+            vx: -0.2,
+            vy: 0,
+            vz: 20,
+            color: '#f1c40f',
+            size: 3.5,
+            life: 0.75,
+            maxLife: 0.75,
+            kind: 'sparkle',
+          },
+          {
+            id: nextId('p'),
+            gridX: c.x + 0.15,
+            gridY: c.y,
+            offsetZ: 26,
+            vx: 0.2,
+            vy: 0,
+            vz: 22,
+            color: '#f1c40f',
+            size: 3.5,
+            life: 0.75,
+            maxLife: 0.75,
+            kind: 'sparkle',
+          }
+        );
+
         c.state = 'leaving';
         c.mood = 'happy';
         const exitX = Math.random() < 0.5 ? -2.5 : state.gridSize + 2.5;

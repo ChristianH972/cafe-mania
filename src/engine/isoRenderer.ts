@@ -286,10 +286,26 @@ function drawWalls(
     ctx.stroke();
   }
 
-  // Awning / CAFÉ MANIA sign above door
+  // Striped 2010 awning & CAFÉ MANIA sign above door
+  const awningY = dMidY - doorH - 12;
+  const stripeW = 8;
+  for (let i = -3; i <= 2; i++) {
+    ctx.fillStyle = Math.abs(i) % 2 === 0 ? '#c0392b' : '#fff8ee';
+    ctx.beginPath();
+    ctx.moveTo(dMidX + i * stripeW, awningY);
+    ctx.lineTo(dMidX + (i + 1) * stripeW, awningY);
+    ctx.lineTo(dMidX + (i + 1) * stripeW + 2, awningY + 10);
+    ctx.lineTo(dMidX + i * stripeW + 2, awningY + 10);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.strokeStyle = '#922b21';
+  ctx.lineWidth = 1.2;
+  ctx.strokeRect(dMidX - 24, awningY, 48, 10);
+
   ctx.fillStyle = '#c0392b';
   ctx.beginPath();
-  ctx.roundRect(dMidX - 30, dMidY - doorH - 28, 60, 17, 6);
+  ctx.roundRect(dMidX - 31, dMidY - doorH - 30, 62, 17, 6);
   ctx.fill();
   ctx.strokeStyle = '#f1c40f';
   ctx.lineWidth = 2;
@@ -297,7 +313,7 @@ function drawWalls(
   ctx.font = 'bold 9px Fredoka, Nunito, sans-serif';
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
-  ctx.fillText('CAFÉ MANIA', dMidX, dMidY - doorH - 16);
+  ctx.fillText('CAFÉ MANIA', dMidX, dMidY - doorH - 18);
 
   // Windows on right wall flanking the door (2010 style with curtains & reflection)
   const windowPositions = [1.3, gridSize - 2.3].filter(
@@ -442,6 +458,34 @@ function drawExterior(
     drawIsoDiamond(ctx, opp.sx, opp.sy, TILE_W, TILE_H, tone, 'rgba(0,0,0,0.08)', 1);
   }
 
+  // 3D curb edge along café sidewalk
+  const curbStart = gridToScreen(-6, -1, originX, originY);
+  const curbEnd = gridToScreen(gridSize + 6, -1, originX, originY);
+  ctx.strokeStyle = '#9aa5b1';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(curbStart.sx - TILE_W / 2, curbStart.sy + TILE_H / 2);
+  ctx.lineTo(curbEnd.sx + TILE_W / 2, curbEnd.sy + TILE_H / 2);
+  ctx.stroke();
+
+  // Manhole cover on avenue + fire hydrant on sidewalk
+  const manhole = gridToScreen(Math.max(1, doorX - 2), -2.9, originX, originY);
+  ctx.fillStyle = '#2f3640';
+  ctx.beginPath();
+  ctx.ellipse(manhole.sx, manhole.sy + 6, 7, 3.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#57606f';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  const hydrant = gridToScreen(Math.max(0.5, doorX - 2.6), -1.1, originX, originY);
+  ctx.fillStyle = '#c0392b';
+  ctx.fillRect(hydrant.sx - 2.5, hydrant.sy - 8, 5, 10);
+  ctx.fillStyle = '#e74c3c';
+  ctx.beginPath();
+  ctx.arc(hydrant.sx, hydrant.sy - 8, 3, 0, Math.PI * 2);
+  ctx.fill();
+
   // Yellow dashed road divider along y = -2.5
   for (let ix = -5; ix <= gridSize + 5; ix += 2) {
     const d1 = gridToScreen(ix + 0.15, -2.55, originX, originY);
@@ -460,22 +504,58 @@ function drawExterior(
     drawIsoDiamond(ctx, cw.sx, cw.sy + 5, TILE_W * 0.24, TILE_H * 0.48, '#ecf0f1');
   }
 
+  // Helper to draw a detailed 2010 cartoon car
+  const drawDetailedCar = (
+    cx: number,
+    cy: number,
+    dir: 1 | -1,
+    bodyTop: string,
+    bodyLeft: string,
+    bodyRight: string
+  ) => {
+    // Asphalt shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 7, 19, 9, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Wheels
+    ctx.fillStyle = '#1e272e';
+    ctx.beginPath();
+    ctx.ellipse(cx - 10, cy + 5, 3.5, 2.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx + 8, cy + 8, 3.5, 2.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Chassis + Cabin
+    drawIsoBox(ctx, cx, cy + 2, 34, 18, 11, bodyTop, bodyLeft, bodyRight);
+    drawIsoBox(ctx, cx, cy - 8, 22, 12, 8, '#dff9fb', '#95afc0', '#7f8fa6');
+    // Headlights & Taillights
+    ctx.fillStyle = '#fff59d';
+    ctx.beginPath();
+    ctx.arc(cx + dir * 13, cy + dir * 2 - 2, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ff5252';
+    ctx.beginPath();
+    ctx.arc(cx - dir * 13, cy - dir * 2 - 2, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
   // Animated 2010 cartoon cars driving along the avenue
   const car1X = ((timeSec * 1.9) % (gridSize + 12)) - 6;
   const car1Pos = gridToScreen(car1X, -2.15, originX, originY);
-  drawIsoBox(ctx, car1Pos.sx, car1Pos.sy + 2, 34, 18, 12, '#e74c3c', '#c0392b', '#962d22');
-  drawIsoBox(ctx, car1Pos.sx, car1Pos.sy - 9, 22, 12, 8, '#dff9fb', '#95afc0', '#7f8fa6');
+  drawDetailedCar(car1Pos.sx, car1Pos.sy, 1, '#e74c3c', '#c0392b', '#962d22');
 
   const car2X = gridSize + 6 - ((timeSec * 1.45 + 5) % (gridSize + 12));
   const car2Pos = gridToScreen(car2X, -3.55, originX, originY);
-  drawIsoBox(ctx, car2Pos.sx, car2Pos.sy + 2, 34, 18, 12, '#3498db', '#2980b9', '#1f618d');
-  drawIsoBox(ctx, car2Pos.sx, car2Pos.sy - 9, 22, 12, 8, '#dff9fb', '#95afc0', '#7f8fa6');
+  drawDetailedCar(car2Pos.sx, car2Pos.sy, -1, '#3498db', '#2980b9', '#1f618d');
 
-  // Street lamps & trees along opposite sidewalk (y = -5.3) and café sidewalk (y = -1.2)
+  // Street lamps with warm glow halo & layered trees
   for (const lx of [1, gridSize - 1]) {
     const lamp = gridToScreen(lx, -1.25, originX, originY);
     ctx.fillStyle = '#2c3e50';
     ctx.fillRect(lamp.sx - 2, lamp.sy - 36, 4, 42);
+    ctx.fillStyle = 'rgba(255, 234, 167, 0.28)';
+    ctx.beginPath();
+    ctx.arc(lamp.sx, lamp.sy - 38, 12, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = '#ffeaa7';
     ctx.beginPath();
     ctx.arc(lamp.sx, lamp.sy - 38, 6, 0, Math.PI * 2);
@@ -487,13 +567,21 @@ function drawExterior(
 
   for (const tx of [0, gridSize - 1, gridSize + 2]) {
     const tPos = gridToScreen(tx, -5.3, originX, originY);
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';
+    ctx.beginPath();
+    ctx.ellipse(tPos.sx, tPos.sy + 14, 15, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = '#7b4b2a';
     ctx.fillRect(tPos.sx - 4, tPos.sy - 8, 8, 22);
+    ctx.fillStyle = '#1e8449';
+    ctx.beginPath();
+    ctx.arc(tPos.sx, tPos.sy - 18, 18, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = '#27ae60';
     ctx.beginPath();
-    ctx.arc(tPos.sx, tPos.sy - 20, 18, 0, Math.PI * 2);
-    ctx.arc(tPos.sx - 10, tPos.sy - 13, 12, 0, Math.PI * 2);
-    ctx.arc(tPos.sx + 10, tPos.sy - 13, 12, 0, Math.PI * 2);
+    ctx.arc(tPos.sx - 9, tPos.sy - 13, 12, 0, Math.PI * 2);
+    ctx.arc(tPos.sx + 9, tPos.sy - 13, 12, 0, Math.PI * 2);
+    ctx.arc(tPos.sx, tPos.sy - 24, 13, 0, Math.PI * 2);
     ctx.fill();
   }
 }
@@ -1679,15 +1767,37 @@ export function renderCafeScene(params: RenderParams): void {
     d.draw();
   }
 
-  // Particles
+  // Particles (steam, smoke, sparkle stars, hearts)
   for (const p of particles) {
     const { sx, sy } = gridToScreen(p.gridX, p.gridY, originX, originY);
     const alpha = Math.max(0, p.life / p.maxLife);
+    const py = sy - p.offsetZ;
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.arc(sx, sy - p.offsetZ, p.size, 0, Math.PI * 2);
-    ctx.fill();
+    if (p.kind === 'heart') {
+      ctx.font = `${Math.round(p.size * 3)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = p.color;
+      ctx.fillText('♥', sx, py);
+    } else if (p.kind === 'sparkle') {
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      const r = p.size * 1.4;
+      ctx.moveTo(sx, py - r);
+      ctx.lineTo(sx + r * 0.35, py - r * 0.35);
+      ctx.lineTo(sx + r, py);
+      ctx.lineTo(sx + r * 0.35, py + r * 0.35);
+      ctx.lineTo(sx, py + r);
+      ctx.lineTo(sx - r * 0.35, py + r * 0.35);
+      ctx.lineTo(sx - r, py);
+      ctx.lineTo(sx - r * 0.35, py - r * 0.35);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(sx, py, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   ctx.globalAlpha = 1;
 
