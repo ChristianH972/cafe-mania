@@ -103,6 +103,49 @@ function drawIsoBox(
   drawIsoDiamond(ctx, cx, topY, w, h, topColor, outline, 1);
 }
 
+/**
+ * Draws a 2D quad mapped onto the left or right vertical face of an isoBox.
+ * u in [0..1] goes left->right across the face; v in [0..1] goes bottom->top.
+ */
+function drawIsoFaceQuad(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  w: number,
+  h: number,
+  heightPx: number,
+  side: 'left' | 'right',
+  u0: number,
+  u1: number,
+  v0: number,
+  v1: number,
+  fill: string,
+  stroke?: string
+) {
+  const pt = (u: number, v: number) => {
+    const x = side === 'left' ? cx - (w / 2) * (1 - u) : cx + (w / 2) * u;
+    const baseY = side === 'left' ? cy + h / 2 + (h / 2) * u : cy + h - (h / 2) * u;
+    return { x, y: baseY - heightPx * v };
+  };
+  const a = pt(u0, v0);
+  const b = pt(u1, v0);
+  const c = pt(u1, v1);
+  const d = pt(u0, v1);
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.lineTo(c.x, c.y);
+  ctx.lineTo(d.x, d.y);
+  ctx.closePath();
+  ctx.fillStyle = fill;
+  ctx.fill();
+  if (stroke) {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 0.9;
+    ctx.stroke();
+  }
+}
+
 function shadeColor(hex: string, percent: number): string {
   const num = parseInt(hex.replace('#', ''), 16);
   const r = Math.min(255, Math.max(0, (num >> 16) + percent));
@@ -1268,15 +1311,6 @@ function drawFurnitureItem(
       ctx.arc(sx + 7, sy - 9, 8.5, 0, Math.PI * 2);
       ctx.arc(sx, sy - 16, 9, 0, Math.PI * 2);
       ctx.fill();
-    } else if (item.id === 'decor_jukebox') {
-      drawIsoBox(ctx, sx, sy + 4, 34, 18, 34, '#f1c40f', '#2980b9', '#1f618d');
-      ctx.fillStyle = '#f39c12';
-      ctx.beginPath();
-      ctx.arc(sx, sy - 26, 10, Math.PI, 0);
-      ctx.fill();
-      ctx.font = '13px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('🎵', sx + Math.sin(timeSec * 3) * 4, sy - 38);
     } else if (item.id === 'decor_divider') {
       // Decorative partition screen (rotates with R)
       const dirX = f.rotation % 2 === 0 ? 1 : -1;
@@ -1306,105 +1340,130 @@ function drawFurnitureItem(
       ctx.closePath();
       ctx.fill();
     } else if (item.id === 'decor_cashier') {
-      // Wooden counter + vintage cash register
-      drawIsoBox(ctx, sx, sy + 4, TILE_W * 0.78, TILE_H * 0.78, 21, '#a0522d', '#8b4513', '#5c3317');
+      // Wooden counter + cash drawer + vintage register
+      const bw = TILE_W * 0.78;
+      const bh = TILE_H * 0.78;
+      drawIsoBox(ctx, sx, sy + 4, bw, bh, 21, '#a0522d', '#8b4513', '#5c3317');
+      drawIsoFaceQuad(ctx, sx, sy + 4, bw, bh, 21, 'left', 0.12, 0.88, 0.12, 0.85, '#6e3410', '#4a230b');
       drawIsoBox(ctx, sx, sy - 17, TILE_W * 0.82, TILE_H * 0.82, 3, '#f5cba7', '#d49a6a', '#b57b4c');
-      // Register body
-      drawIsoBox(ctx, sx, sy - 19, 20, 11, 10, '#bdc3c7', '#95a5a6', '#7f8c8d');
-      // Green LED price display
-      ctx.fillStyle = '#2c3e50';
-      ctx.fillRect(sx - 5, sy - 33, 10, 5);
-      ctx.fillStyle = '#2ecc71';
-      ctx.fillRect(sx - 3, sy - 32, 6, 3);
+      // Register body & cash drawer
+      drawIsoBox(ctx, sx, sy - 19, 22, 12, 11, '#d5dbdb', '#95a5a6', '#7f8c8d');
+      drawIsoFaceQuad(ctx, sx, sy - 19, 22, 12, 11, 'left', 0.15, 0.85, 0.1, 0.45, '#5d6d7e');
+      // Green LED price display on top
+      drawIsoBox(ctx, sx + 2, sy - 30, 12, 7, 6, '#2c3e50', '#1e272e', '#111');
+      drawIsoFaceQuad(ctx, sx + 2, sy - 30, 12, 7, 6, 'left', 0.18, 0.82, 0.25, 0.75, '#2ecc71');
     } else if (item.id === 'decor_fridge') {
-      // Tall classic double-door refrigerator
-      drawIsoBox(ctx, sx, sy + 4, TILE_W * 0.72, TILE_H * 0.72, 42, '#f8f9f9', '#d5dbdb', '#aeb6bf');
-      // Freezer / fridge split line & handles
-      ctx.strokeStyle = '#7f8c8d';
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.moveTo(sx - 18, sy - 20);
-      ctx.lineTo(sx, sy - 11);
-      ctx.lineTo(sx + 18, sy - 20);
-      ctx.stroke();
-      ctx.fillStyle = '#95a5a6';
-      ctx.fillRect(sx - 5, sy - 28, 2, 7);
-      ctx.fillRect(sx - 5, sy - 14, 2, 11);
-      // Cute colorful fridge magnets
-      ctx.fillStyle = '#e74c3c';
-      ctx.fillRect(sx + 6, sy - 28, 2.5, 2.5);
-      ctx.fillStyle = '#f1c40f';
-      ctx.fillRect(sx + 10, sy - 25, 2.5, 2.5);
+      // Tall classic double-door refrigerator with aligned doors, handles & magnets
+      const fw = TILE_W * 0.68;
+      const fh = TILE_H * 0.68;
+      const fH = 42;
+      drawIsoBox(ctx, sx, sy + 4, fw, fh, fH, '#ffffff', '#e5e8e8', '#bdc3c7');
+      // Freezer door (top) & main door (bottom) mapped flush on left face
+      drawIsoFaceQuad(ctx, sx, sy + 4, fw, fh, fH, 'left', 0.08, 0.92, 0.64, 0.95, '#f2f4f4', '#aeb6bf');
+      drawIsoFaceQuad(ctx, sx, sy + 4, fw, fh, fH, 'left', 0.08, 0.92, 0.05, 0.6, '#f8f9f9', '#aeb6bf');
+      // Metallic handles
+      drawIsoFaceQuad(ctx, sx, sy + 4, fw, fh, fH, 'left', 0.78, 0.84, 0.69, 0.88, '#7f8c8d');
+      drawIsoFaceQuad(ctx, sx, sy + 4, fw, fh, fH, 'left', 0.78, 0.84, 0.34, 0.55, '#7f8c8d');
+      // Colorful fridge magnets
+      drawIsoFaceQuad(ctx, sx, sy + 4, fw, fh, fH, 'left', 0.22, 0.32, 0.75, 0.82, '#e74c3c');
+      drawIsoFaceQuad(ctx, sx, sy + 4, fw, fh, fH, 'left', 0.38, 0.48, 0.78, 0.85, '#f1c40f');
+      drawIsoFaceQuad(ctx, sx, sy + 4, fw, fh, fH, 'left', 0.26, 0.36, 0.42, 0.49, '#3498db');
     } else if (item.id === 'decor_vending') {
-      // Classic red soda vending machine with illuminated display
-      drawIsoBox(ctx, sx, sy + 4, TILE_W * 0.72, TILE_H * 0.72, 40, '#e74c3c', '#c0392b', '#922b21');
-      // Illuminated bottle showcase window
-      ctx.fillStyle = '#dff9fb';
-      ctx.beginPath();
-      ctx.moveTo(sx - 16, sy - 30);
-      ctx.lineTo(sx - 3, sy - 23);
-      ctx.lineTo(sx - 3, sy - 6);
-      ctx.lineTo(sx - 16, sy - 13);
-      ctx.closePath();
-      ctx.fill();
-      // Little colorful drink cans inside
-      ctx.fillStyle = '#e67e22';
-      ctx.fillRect(sx - 13, sy - 25, 3, 4);
-      ctx.fillStyle = '#2ecc71';
-      ctx.fillRect(sx - 8, sy - 22, 3, 4);
-      ctx.fillStyle = '#3498db';
-      ctx.fillRect(sx - 13, sy - 17, 3, 4);
-      // Dispenser slot
-      ctx.fillStyle = '#1e272e';
-      ctx.fillRect(sx - 13, sy - 6, 8, 4);
+      // Classic red soda vending machine with flush illuminated showcase
+      const vw = TILE_W * 0.68;
+      const vh = TILE_H * 0.68;
+      const vH = 40;
+      drawIsoBox(ctx, sx, sy + 4, vw, vh, vH, '#e74c3c', '#c0392b', '#922b21');
+      // Illuminated glass showcase on left face
+      drawIsoFaceQuad(ctx, sx, sy + 4, vw, vh, vH, 'left', 0.12, 0.72, 0.34, 0.9, '#dff9fb', '#ffffff');
+      // Drink shelves & colorful cans inside
+      drawIsoFaceQuad(ctx, sx, sy + 4, vw, vh, vH, 'left', 0.18, 0.3, 0.72, 0.82, '#e67e22');
+      drawIsoFaceQuad(ctx, sx, sy + 4, vw, vh, vH, 'left', 0.36, 0.48, 0.72, 0.82, '#2ecc71');
+      drawIsoFaceQuad(ctx, sx, sy + 4, vw, vh, vH, 'left', 0.54, 0.66, 0.72, 0.82, '#3498db');
+      drawIsoFaceQuad(ctx, sx, sy + 4, vw, vh, vH, 'left', 0.18, 0.3, 0.46, 0.56, '#9b59b6');
+      drawIsoFaceQuad(ctx, sx, sy + 4, vw, vh, vH, 'left', 0.36, 0.48, 0.46, 0.56, '#f1c40f');
+      drawIsoFaceQuad(ctx, sx, sy + 4, vw, vh, vH, 'left', 0.54, 0.66, 0.46, 0.56, '#e74c3c');
+      // Coin panel & dispenser flap
+      drawIsoFaceQuad(ctx, sx, sy + 4, vw, vh, vH, 'left', 0.78, 0.9, 0.5, 0.85, '#ecf0f1', '#7f8c8d');
+      drawIsoFaceQuad(ctx, sx, sy + 4, vw, vh, vH, 'left', 0.18, 0.68, 0.08, 0.24, '#1e272e', '#7f8c8d');
     } else if (item.id === 'decor_arcade') {
-      // Retro arcade cabinet with glowing animated screen
-      drawIsoBox(ctx, sx, sy + 4, TILE_W * 0.68, TILE_H * 0.68, 36, '#3498db', '#2980b9', '#1f618d');
-      // Glowing pixel screen
-      ctx.fillStyle = '#1e272e';
-      ctx.beginPath();
-      ctx.moveTo(sx - 14, sy - 27);
-      ctx.lineTo(sx - 2, sy - 21);
-      ctx.lineTo(sx - 2, sy - 10);
-      ctx.lineTo(sx - 14, sy - 16);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = Math.sin(timeSec * 6) > 0 ? '#f1c40f' : '#2ecc71';
-      ctx.fillRect(sx - 10, sy - 20, 4, 4);
-      // Control deck + red joystick
-      ctx.fillStyle = '#e74c3c';
-      ctx.beginPath();
-      ctx.arc(sx - 8, sy - 10, 2, 0, Math.PI * 2);
-      ctx.fill();
+      // Retro arcade cabinet with flush glowing screen, marquee & joystick deck
+      const aw = TILE_W * 0.64;
+      const ah = TILE_H * 0.64;
+      const aH = 36;
+      drawIsoBox(ctx, sx, sy + 4, aw, ah, aH, '#f1c40f', '#2980b9', '#1f618d');
+      // Marquee header & glowing CRT screen on left face
+      drawIsoFaceQuad(ctx, sx, sy + 4, aw, ah, aH, 'left', 0.12, 0.88, 0.84, 0.95, '#e74c3c', '#f1c40f');
+      drawIsoFaceQuad(ctx, sx, sy + 4, aw, ah, aH, 'left', 0.14, 0.86, 0.48, 0.8, '#1e272e', '#7f8c8d');
+      const pxCol = Math.sin(timeSec * 6) > 0 ? '#2ecc71' : '#f1c40f';
+      drawIsoFaceQuad(ctx, sx, sy + 4, aw, ah, aH, 'left', 0.32, 0.52, 0.58, 0.7, pxCol);
+      drawIsoFaceQuad(ctx, sx, sy + 4, aw, ah, aH, 'left', 0.6, 0.72, 0.54, 0.64, '#e84393');
+      // Control deck & coin door
+      drawIsoFaceQuad(ctx, sx, sy + 4, aw, ah, aH, 'left', 0.1, 0.9, 0.36, 0.46, '#34495e', '#f1c40f');
+      drawIsoFaceQuad(ctx, sx, sy + 4, aw, ah, aH, 'left', 0.34, 0.66, 0.08, 0.28, '#2c3e50', '#7f8c8d');
     } else if (item.id === 'decor_pool') {
-      // Classic emerald green pool/billiard table
+      // Emerald green billiard table on 4 wooden legs (not a solid block!)
+      const pCenterY = sy + TILE_H / 2;
+      ctx.fillStyle = 'rgba(0,0,0,0.16)';
+      ctx.beginPath();
+      ctx.ellipse(sx, pCenterY + 2, 23, 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+      for (const leg of [
+        { x: sx, y: sy + 7, c: '#3e220f' },
+        { x: sx - 20, y: sy + 17, c: '#5c3317' },
+        { x: sx + 20, y: sy + 17, c: '#3e220f' },
+        { x: sx, y: sy + 26, c: '#5c3317' },
+      ]) {
+        ctx.fillStyle = leg.c;
+        ctx.fillRect(leg.x - 2.2, leg.y - 12, 4.4, 12);
+      }
       const pTop = sy - 11;
-      drawIsoBox(ctx, sx, sy + 4, TILE_W * 0.84, TILE_H * 0.84, 12, '#6e2c00', '#5c3317', '#3e220f');
-      drawIsoBox(ctx, sx, pTop, TILE_W * 0.86, TILE_H * 0.86, 4, '#27ae60', '#784212', '#5c3317');
-      // Colored billiard balls
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(sx - 8, pTop + 4, 1.8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#f1c40f';
-      ctx.beginPath();
-      ctx.arc(sx + 4, pTop + 3, 1.8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#e74c3c';
-      ctx.beginPath();
-      ctx.arc(sx + 7, pTop + 5, 1.8, 0, Math.PI * 2);
-      ctx.fill();
+      drawIsoBox(ctx, sx, pTop, TILE_W * 0.88, TILE_H * 0.88, 5, '#6e2c00', '#5c3317', '#3e220f');
+      drawIsoDiamond(ctx, sx, pTop - 4, TILE_W * 0.76, TILE_H * 0.76, '#27ae60', '#1e8449', 1);
+      // 4 corner pockets
+      ctx.fillStyle = '#111';
+      for (const [px, py] of [
+        [sx, pTop - 3],
+        [sx - 19, pTop + 6],
+        [sx + 19, pTop + 6],
+        [sx, pTop + 15],
+      ]) {
+        ctx.beginPath();
+        ctx.arc(px, py, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Cue ball & colored balls
+      for (const [bx, by, col] of [
+        [sx - 7, pTop + 6, '#ffffff'],
+        [sx + 4, pTop + 5, '#f1c40f'],
+        [sx + 7, pTop + 7, '#e74c3c'],
+        [sx + 4, pTop + 8, '#3498db'],
+      ] as [number, number, string][]) {
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        ctx.arc(bx, by, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (item.id === 'decor_jukebox') {
+      // Detailed 2010 Jukebox with glowing neon arch & speaker grille
+      const jw = 34;
+      const jh = 18;
+      const jH = 30;
+      drawIsoBox(ctx, sx, sy + 4, jw, jh, jH, '#f1c40f', '#2980b9', '#1f618d');
+      drawIsoFaceQuad(ctx, sx, sy + 4, jw, jh, jH, 'left', 0.16, 0.84, 0.12, 0.55, '#f39c12', '#f1c40f');
+      drawIsoFaceQuad(ctx, sx, sy + 4, jw, jh, jH, 'left', 0.2, 0.8, 0.62, 0.88, '#dff9fb', '#ffffff');
+      ctx.font = '13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🎵', sx + Math.sin(timeSec * 3) * 4, sy - 34);
     } else if (item.id === 'decor_espresso') {
-      drawIsoBox(ctx, sx, sy + 4, 34, 18, 22, '#ecf0f1', '#c0392b', '#962d22');
-      // Drip tray + cup + green power LED
-      ctx.fillStyle = '#2c3e50';
-      ctx.fillRect(sx - 6, sy - 4, 12, 5);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(sx - 2, sy - 5, 4, 4);
-      ctx.fillStyle = '#2ecc71';
-      ctx.beginPath();
-      ctx.arc(sx + 6, sy - 10, 1.8, 0, Math.PI * 2);
-      ctx.fill();
+      // Juice / Espresso dispenser on wooden base
+      const ew = 34;
+      const eh = 18;
+      const eH = 22;
+      drawIsoBox(ctx, sx, sy + 4, ew, eh, eH, '#ecf0f1', '#c0392b', '#962d22');
+      drawIsoFaceQuad(ctx, sx, sy + 4, ew, eh, eH, 'left', 0.18, 0.82, 0.12, 0.65, '#2c3e50', '#95a5a6');
+      drawIsoFaceQuad(ctx, sx, sy + 4, ew, eh, eH, 'left', 0.36, 0.64, 0.18, 0.45, '#ffffff');
+      drawIsoFaceQuad(ctx, sx, sy + 4, ew, eh, eH, 'left', 0.72, 0.82, 0.72, 0.82, '#2ecc71');
       ctx.font = '13px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('☕', sx, sy - 20 + Math.sin(timeSec * 3) * 1.5);
