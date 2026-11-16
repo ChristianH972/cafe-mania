@@ -42,7 +42,7 @@ export function createInitialState(): GameState {
       x: 1,
       y: 3,
       rotation: 0,
-      counter: { recipeId: 'nachos_queijo', portions: 6, maxPortions: 6 },
+      counter: { recipeId: 'pao_frances', portions: 6, maxPortions: 6, freshness: 1, spoiled: false },
     },
     {
       instanceId: 'counter_2',
@@ -151,7 +151,7 @@ export function createInitialState(): GameState {
       },
     ],
     recipeMastery: {
-      nachos_queijo: 1,
+      pao_frances: 1,
     },
     quests: INITIAL_QUESTS.map((q) => ({ ...q })),
     neighbors: INITIAL_NEIGHBORS.map((n) => ({ ...n })),

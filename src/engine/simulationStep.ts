@@ -1,5 +1,5 @@
 import { getCatalogItem } from '../data/catalog';
-import { RECIPES, getRecipeById } from '../data/recipes';
+import { RECIPES, getRecipeById, isRecipeUnlocked } from '../data/recipes';
 import { soundEngine } from '../audio/soundEngine';
 import {
   Customer,
@@ -220,11 +220,12 @@ function stepCustomers(state: GameState, dt: number, effects: SimulationEffects)
     const availableCounters = state.furniture.filter(
       (f) => f.counter && !f.counter.spoiled && f.counter.portions > 0 && f.counter.recipeId
     );
-    const unlocked = RECIPES.filter((r) => r.unlockLevel <= state.level);
+    const unlocked = RECIPES.filter((r) => isRecipeUnlocked(r, state));
+    const fallbackPool = unlocked.length > 0 ? unlocked : RECIPES.slice(0, 2);
     const desired =
       availableCounters.length > 0
         ? availableCounters[Math.floor(Math.random() * availableCounters.length)].counter!.recipeId
-        : unlocked[Math.floor(Math.random() * unlocked.length)].id;
+        : fallbackPool[Math.floor(Math.random() * fallbackPool.length)].id;
 
     const spawnFromLeft = Math.random() < 0.5;
     const sidewalkY = -1;

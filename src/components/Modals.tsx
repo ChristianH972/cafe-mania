@@ -1,7 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Lock, Star, Sparkles, Gift, Eye, UserPlus } from 'lucide-react';
 import { EXPANSION_TIERS, FLOOR_STYLES, FURNITURE_CATALOG, WALL_STYLES } from '../data/catalog';
-import { RECIPES, getMasteryStars } from '../data/recipes';
+import {
+  RECIPES,
+  getMasteryNextTarget,
+  getMasteryStars,
+  isRecipeUnlocked,
+} from '../data/recipes';
 import {
   renderCharacterPreview,
   renderFurnitureThumbnail,
@@ -139,6 +144,27 @@ export const Modals: React.FC<ModalsProps> = ({
         <div className="modal-body">
           {activeModal === 'recipes' && (
             <>
+              <div className="recipes-summary-bar">
+                <div className="recipes-summary-text">
+                  <strong>
+                    🍳 {RECIPES.filter((r) => isRecipeUnlocked(r, state)).length} / {RECIPES.length}{' '}
+                    Receitas Desbloqueadas
+                  </strong>
+                  <span>Complete missões para liberar novos pratos no cardápio!</span>
+                </div>
+                <div className="recipes-summary-meter">
+                  <div
+                    className="recipes-summary-fill"
+                    style={{
+                      width: `${Math.round(
+                        (RECIPES.filter((r) => isRecipeUnlocked(r, state)).length / RECIPES.length) *
+                          100
+                      )}%`,
+                    }}
+                  />
+                </div>
+              </div>
+
               <div className="filter-tabs">
                 {['Todos', 'Bebidas', 'Salgados', 'Doces', 'Pratos'].map((cat) => (
                   <button
@@ -154,16 +180,24 @@ export const Modals: React.FC<ModalsProps> = ({
                 {RECIPES.filter(
                   (r) => recipeCategory === 'Todos' || r.category === recipeCategory
                 ).map((r) => {
-                  const locked = state.level < r.unlockLevel;
+                  const unlocked = isRecipeUnlocked(r, state);
+                  const locked = !unlocked;
                   const canAfford = state.coins >= r.cost;
                   const cookCount = state.recipeMastery[r.id] ?? 0;
                   const stars = getMasteryStars(cookCount);
+                  const nextTarget = getMasteryNextTarget(cookCount);
+                  const masteryPct =
+                    stars >= 3 ? 100 : Math.min(100, Math.round((cookCount / nextTarget) * 100));
+                  const netProfit = r.sellPrice * r.portions - r.cost;
 
                   return (
-                    <div key={r.id} className={`item-card ${locked ? 'locked' : ''}`}>
+                    <div key={r.id} className={`item-card recipe-card ${locked ? 'locked' : ''}`}>
                       <div className="card-top">
-                        <span className="card-emoji">{r.emoji}</span>
-                        <div className="stars-row" title={`Preparado ${cookCount}x`}>
+                        <span className="recipe-cat-badge">{r.category}</span>
+                        <div
+                          className="stars-row"
+                          title={`Maestria: preparado ${cookCount}x (${stars}/3 estrelas)`}
+                        >
                           {[1, 2, 3].map((s) => (
                             <Star
                               key={s}
@@ -174,16 +208,51 @@ export const Modals: React.FC<ModalsProps> = ({
                           ))}
                         </div>
                       </div>
+
+                      <div
+                        className="recipe-art-box"
+                        style={{
+                          background: `radial-gradient(circle at 50% 45%, #fffdf8 10%, ${r.color}33 100%)`,
+                          borderColor: `${r.color}66`,
+                        }}
+                      >
+                        <div className="recipe-plate-ring">
+                          <span className="recipe-big-emoji">{r.emoji}</span>
+                        </div>
+                        <span className="recipe-xp-pill">+{r.xpPerCook} XP</span>
+                      </div>
+
                       <h3>{r.name}</h3>
                       <p className="card-desc">{r.description}</p>
-                      <div className="card-meta">
-                        <span>⏱️ {r.cookTimeSec}s</span>
-                        <span>🍽️ {r.portions} porções</span>
-                        <span>💵 Venda: {r.sellPrice}🪙</span>
+
+                      <div className="recipe-stats-pills">
+                        <span className="r-pill">⏱️ {r.cookTimeSec}s</span>
+                        <span className="r-pill">🍽️ {r.portions}x</span>
+                        <span className="r-pill profit">💰 +{netProfit}🪙</span>
                       </div>
+
+                      {!locked && (
+                        <div className="mastery-mini-bar" title={`Preparado ${cookCount}x`}>
+                          <div
+                            className="mastery-mini-fill"
+                            style={{ width: `${masteryPct}%` }}
+                          />
+                          <span>
+                            {stars >= 3
+                              ? `★ Mestre (${cookCount}x)`
+                              : `Maestria ${cookCount}/${nextTarget}`}
+                          </span>
+                        </div>
+                      )}
+
                       {locked ? (
-                        <div className="locked-tag">
-                          <Lock size={14} /> Nível {r.unlockLevel}
+                        <div className="locked-tag recipe-lock-reason">
+                          <Lock size={13} />
+                          <span>
+                            {r.unlockQuestTitle
+                              ? `Missão: ${r.unlockQuestTitle}`
+                              : `Nível ${r.unlockLevel}`}
+                          </span>
                         </div>
                       ) : (
                         <button
@@ -191,7 +260,7 @@ export const Modals: React.FC<ModalsProps> = ({
                           disabled={!canAfford}
                           onClick={() => onCookRecipe(r, targetStoveId)}
                         >
-                          Cozinhar ({r.cost} 🪙)
+                          🍳 Cozinhar · {r.cost} 🪙
                         </button>
                       )}
                     </div>
@@ -538,6 +607,14 @@ export const Modals: React.FC<ModalsProps> = ({
                     <div className="quest-info">
                       <h4>{q.title}</h4>
                       <p>{q.description}</p>
+                      {RECIPES.filter((r) => r.unlockQuestId === q.id).length > 0 && (
+                        <div className="quest-unlock-pill">
+                          📖 Desbloqueia:{' '}
+                          {RECIPES.filter((r) => r.unlockQuestId === q.id)
+                            .map((r) => `${r.emoji} ${r.name}`)
+                            .join(', ')}
+                        </div>
+                      )}
                       <div className="quest-progress">
                         <div className="quest-fill" style={{ width: `${pct}%` }} />
                         <span>

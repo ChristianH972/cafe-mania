@@ -24,6 +24,8 @@ export interface Recipe {
   xpPerCook: number;
   xpPerServe: number;
   unlockLevel: number;
+  unlockQuestId?: string;
+  unlockQuestTitle?: string;
   color: string;
   description: string;
 }

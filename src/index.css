@@ -806,6 +806,170 @@ body,
   border-color: #d35400;
 }
 
+.recipes-summary-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, #fff6e6, #fdebd0);
+  border: 2px solid #f5cba7;
+  border-radius: 14px;
+}
+
+.recipes-summary-text {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: #5c3317;
+}
+
+.recipes-summary-text span {
+  font-size: 12px;
+  color: #8a5a36;
+  font-weight: 700;
+}
+
+.recipes-summary-meter {
+  height: 8px;
+  background: rgba(92, 51, 23, 0.14);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.recipes-summary-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f39c12, #2ecc71);
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+
+.recipe-card {
+  gap: 7px;
+}
+
+.recipe-cat-badge {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  background: #f4e6d4;
+  color: #6b4423;
+  padding: 2px 8px;
+  border-radius: 99px;
+}
+
+.recipe-art-box {
+  position: relative;
+  height: 86px;
+  border-radius: 12px;
+  border: 1.5px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.recipe-plate-ring {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffffff, #eef2f3);
+  border: 2.5px solid #dcdde1;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recipe-big-emoji {
+  font-size: 34px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.15));
+}
+
+.recipe-xp-pill {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  background: rgba(44, 24, 16, 0.78);
+  color: #ffd700;
+  padding: 2px 7px;
+  border-radius: 99px;
+}
+
+.recipe-stats-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.r-pill {
+  font-size: 11px;
+  font-weight: 800;
+  background: #f8f2ea;
+  color: #5d4037;
+  padding: 3px 7px;
+  border-radius: 7px;
+  border: 1px solid #ead8c3;
+}
+
+.r-pill.profit {
+  background: #eafaf1;
+  color: #1e8449;
+  border-color: #a9dfbf;
+}
+
+.mastery-mini-bar {
+  position: relative;
+  height: 15px;
+  background: #efe5d8;
+  border-radius: 99px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mastery-mini-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #f1c40f, #f39c12);
+  opacity: 0.45;
+}
+
+.mastery-mini-bar span {
+  position: relative;
+  z-index: 1;
+  font-size: 10px;
+  font-weight: 800;
+  color: #5c3317;
+}
+
+.recipe-lock-reason {
+  font-size: 11px;
+  text-align: center;
+}
+
+.quest-unlock-pill {
+  display: inline-block;
+  margin: 4px 0 6px;
+  padding: 3px 9px;
+  border-radius: 8px;
+  background: #fef5e7;
+  border: 1px solid #f5cba7;
+  color: #9c4a00;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .staff-box {
   background: #fff;
   border: 2px solid #ecd5b8;
