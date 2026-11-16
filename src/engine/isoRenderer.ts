@@ -1277,6 +1277,123 @@ function drawFurnitureItem(
       ctx.font = '13px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('🎵', sx + Math.sin(timeSec * 3) * 4, sy - 38);
+    } else if (item.id === 'decor_divider') {
+      // Decorative partition screen (rotates with R)
+      const dirX = f.rotation % 2 === 0 ? 1 : -1;
+      const p1x = sx - dirX * 18;
+      const p1y = sy + 8;
+      const p2x = sx + dirX * 18;
+      const p2y = sy + 24;
+      // Wood frame
+      ctx.fillStyle = '#5c3317';
+      ctx.beginPath();
+      ctx.moveTo(p1x, p1y);
+      ctx.lineTo(p2x, p2y);
+      ctx.lineTo(p2x, p2y - 30);
+      ctx.lineTo(p1x, p1y - 30);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#3e220f';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      // Inner bamboo/cream slats
+      ctx.fillStyle = '#f5cba7';
+      ctx.beginPath();
+      ctx.moveTo(p1x + dirX * 3, p1y - 3);
+      ctx.lineTo(p2x - dirX * 3, p2y - 3);
+      ctx.lineTo(p2x - dirX * 3, p2y - 26);
+      ctx.lineTo(p1x + dirX * 3, p1y - 26);
+      ctx.closePath();
+      ctx.fill();
+    } else if (item.id === 'decor_cashier') {
+      // Wooden counter + vintage cash register
+      drawIsoBox(ctx, sx, sy + 4, TILE_W * 0.78, TILE_H * 0.78, 21, '#a0522d', '#8b4513', '#5c3317');
+      drawIsoBox(ctx, sx, sy - 17, TILE_W * 0.82, TILE_H * 0.82, 3, '#f5cba7', '#d49a6a', '#b57b4c');
+      // Register body
+      drawIsoBox(ctx, sx, sy - 19, 20, 11, 10, '#bdc3c7', '#95a5a6', '#7f8c8d');
+      // Green LED price display
+      ctx.fillStyle = '#2c3e50';
+      ctx.fillRect(sx - 5, sy - 33, 10, 5);
+      ctx.fillStyle = '#2ecc71';
+      ctx.fillRect(sx - 3, sy - 32, 6, 3);
+    } else if (item.id === 'decor_fridge') {
+      // Tall classic double-door refrigerator
+      drawIsoBox(ctx, sx, sy + 4, TILE_W * 0.72, TILE_H * 0.72, 42, '#f8f9f9', '#d5dbdb', '#aeb6bf');
+      // Freezer / fridge split line & handles
+      ctx.strokeStyle = '#7f8c8d';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(sx - 18, sy - 20);
+      ctx.lineTo(sx, sy - 11);
+      ctx.lineTo(sx + 18, sy - 20);
+      ctx.stroke();
+      ctx.fillStyle = '#95a5a6';
+      ctx.fillRect(sx - 5, sy - 28, 2, 7);
+      ctx.fillRect(sx - 5, sy - 14, 2, 11);
+      // Cute colorful fridge magnets
+      ctx.fillStyle = '#e74c3c';
+      ctx.fillRect(sx + 6, sy - 28, 2.5, 2.5);
+      ctx.fillStyle = '#f1c40f';
+      ctx.fillRect(sx + 10, sy - 25, 2.5, 2.5);
+    } else if (item.id === 'decor_vending') {
+      // Classic red soda vending machine with illuminated display
+      drawIsoBox(ctx, sx, sy + 4, TILE_W * 0.72, TILE_H * 0.72, 40, '#e74c3c', '#c0392b', '#922b21');
+      // Illuminated bottle showcase window
+      ctx.fillStyle = '#dff9fb';
+      ctx.beginPath();
+      ctx.moveTo(sx - 16, sy - 30);
+      ctx.lineTo(sx - 3, sy - 23);
+      ctx.lineTo(sx - 3, sy - 6);
+      ctx.lineTo(sx - 16, sy - 13);
+      ctx.closePath();
+      ctx.fill();
+      // Little colorful drink cans inside
+      ctx.fillStyle = '#e67e22';
+      ctx.fillRect(sx - 13, sy - 25, 3, 4);
+      ctx.fillStyle = '#2ecc71';
+      ctx.fillRect(sx - 8, sy - 22, 3, 4);
+      ctx.fillStyle = '#3498db';
+      ctx.fillRect(sx - 13, sy - 17, 3, 4);
+      // Dispenser slot
+      ctx.fillStyle = '#1e272e';
+      ctx.fillRect(sx - 13, sy - 6, 8, 4);
+    } else if (item.id === 'decor_arcade') {
+      // Retro arcade cabinet with glowing animated screen
+      drawIsoBox(ctx, sx, sy + 4, TILE_W * 0.68, TILE_H * 0.68, 36, '#3498db', '#2980b9', '#1f618d');
+      // Glowing pixel screen
+      ctx.fillStyle = '#1e272e';
+      ctx.beginPath();
+      ctx.moveTo(sx - 14, sy - 27);
+      ctx.lineTo(sx - 2, sy - 21);
+      ctx.lineTo(sx - 2, sy - 10);
+      ctx.lineTo(sx - 14, sy - 16);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = Math.sin(timeSec * 6) > 0 ? '#f1c40f' : '#2ecc71';
+      ctx.fillRect(sx - 10, sy - 20, 4, 4);
+      // Control deck + red joystick
+      ctx.fillStyle = '#e74c3c';
+      ctx.beginPath();
+      ctx.arc(sx - 8, sy - 10, 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (item.id === 'decor_pool') {
+      // Classic emerald green pool/billiard table
+      const pTop = sy - 11;
+      drawIsoBox(ctx, sx, sy + 4, TILE_W * 0.84, TILE_H * 0.84, 12, '#6e2c00', '#5c3317', '#3e220f');
+      drawIsoBox(ctx, sx, pTop, TILE_W * 0.86, TILE_H * 0.86, 4, '#27ae60', '#784212', '#5c3317');
+      // Colored billiard balls
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(sx - 8, pTop + 4, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#f1c40f';
+      ctx.beginPath();
+      ctx.arc(sx + 4, pTop + 3, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#e74c3c';
+      ctx.beginPath();
+      ctx.arc(sx + 7, pTop + 5, 1.8, 0, Math.PI * 2);
+      ctx.fill();
     } else if (item.id === 'decor_espresso') {
       drawIsoBox(ctx, sx, sy + 4, 34, 18, 22, '#ecf0f1', '#c0392b', '#962d22');
       // Drip tray + cup + green power LED
