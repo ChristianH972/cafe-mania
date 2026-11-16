@@ -76,6 +76,7 @@ export function App() {
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [levelBanner, setLevelBanner] = useState<number | null>(null);
   const [cookingStoveId, setCookingStoveId] = useState<string | null>(null);
+  const [musicEnabled, setMusicEnabled] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -611,6 +612,7 @@ export function App() {
     <div className="game-shell">
       <TopHud
         state={uiState}
+        musicEnabled={musicEnabled}
         visitingNeighborName={visitingNeighbor?.cafeName ?? null}
         onSetSpeed={(sp) => {
           stateRef.current.speed = sp;
@@ -619,7 +621,21 @@ export function App() {
         onToggleSound={() => {
           stateRef.current.soundEnabled = !stateRef.current.soundEnabled;
           soundEngine.enabled = stateRef.current.soundEnabled;
+          if (!stateRef.current.soundEnabled && musicEnabled) {
+            soundEngine.setMusicEnabled(false);
+            setMusicEnabled(false);
+          }
           setUiState({ ...stateRef.current });
+        }}
+        onToggleMusic={() => {
+          const next = !musicEnabled;
+          if (next && !stateRef.current.soundEnabled) {
+            stateRef.current.soundEnabled = true;
+            soundEngine.enabled = true;
+            setUiState({ ...stateRef.current });
+          }
+          soundEngine.setMusicEnabled(next);
+          setMusicEnabled(next);
         }}
         onResetGame={() => {
           if (window.confirm('Deseja reiniciar seu Café Mania do zero?')) {

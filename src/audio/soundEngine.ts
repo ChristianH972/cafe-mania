@@ -1,6 +1,9 @@
 class SoundEngine {
   private ctx: AudioContext | null = null;
+  private musicTimer: number | null = null;
+  private musicStep = 0;
   public enabled = true;
+  public musicEnabled = false;
 
   private getCtx(): AudioContext | null {
     if (!this.enabled) return null;
@@ -91,6 +94,37 @@ class SoundEngine {
     this.playTone(659.25, 0.1, 'sine', 0.09, 0);
     this.playTone(880, 0.1, 'sine', 0.09, 0.08);
     this.playTone(1174.66, 0.22, 'sine', 0.1, 0.16);
+  }
+
+  setMusicEnabled(active: boolean) {
+    this.musicEnabled = active;
+    if (!active || !this.enabled) {
+      if (this.musicTimer !== null) {
+        window.clearInterval(this.musicTimer);
+        this.musicTimer = null;
+      }
+      return;
+    }
+    if (this.musicTimer !== null) return;
+
+    // Gentle 2010 bistro lounge arpeggio (Cmaj7 -> Am7 -> Dm7 -> G7)
+    const chords = [
+      [261.63, 329.63, 392.0, 493.88],
+      [220.0, 261.63, 329.63, 392.0],
+      [293.66, 349.23, 440.0, 523.25],
+      [196.0, 246.94, 293.66, 349.23],
+    ];
+
+    const playStep = () => {
+      if (!this.enabled || !this.musicEnabled) return;
+      const chord = chords[Math.floor(this.musicStep / 4) % chords.length];
+      const note = chord[this.musicStep % 4];
+      this.playTone(note, 0.42, 'sine', 0.022, 0);
+      this.musicStep = (this.musicStep + 1) % 16;
+    };
+
+    playStep();
+    this.musicTimer = window.setInterval(playStep, 520);
   }
 }
 

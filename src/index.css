@@ -78,6 +78,20 @@ body,
   height: 38px;
 }
 
+.hud-chef-avatar {
+  width: 38px;
+  height: 40px;
+  border-radius: 10px;
+  background: radial-gradient(circle at 50% 45%, #fff8ee, #f2d5b3);
+  border: 2px solid #f1c40f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
+  flex-shrink: 0;
+}
+
 .cafe-identity {
   display: flex;
   flex-direction: column;

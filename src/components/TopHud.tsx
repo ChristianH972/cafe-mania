@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Coins,
   Banknote,
@@ -6,6 +6,7 @@ import {
   Smile,
   Volume2,
   VolumeX,
+  Music,
   Pause,
   Play,
   FastForward,
@@ -14,12 +15,15 @@ import {
 } from 'lucide-react';
 import { GameState } from '../types/game';
 import { xpForNextLevel } from '../engine/gameLogic';
+import { renderCharacterPreview } from '../engine/isoRenderer';
 
 interface TopHudProps {
   state: GameState;
+  musicEnabled: boolean;
   visitingNeighborName: string | null;
   onSetSpeed: (speed: 0 | 1 | 2) => void;
   onToggleSound: () => void;
+  onToggleMusic: () => void;
   onResetGame: () => void;
   onExitNeighbor: () => void;
   onRenameCafe: (name: string) => void;
@@ -27,19 +31,42 @@ interface TopHudProps {
 
 export const TopHud: React.FC<TopHudProps> = ({
   state,
+  musicEnabled,
   visitingNeighborName,
   onSetSpeed,
   onToggleSound,
+  onToggleMusic,
   onResetGame,
   onExitNeighbor,
   onRenameCafe,
 }) => {
   const nextXp = xpForNextLevel(state.level);
   const xpPct = Math.min(100, Math.round((state.xp / nextXp) * 100));
+  const chefCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const chef = state.staff.find((s) => s.role === 'chef');
+
+  useEffect(() => {
+    if (!chefCanvasRef.current) return;
+    renderCharacterPreview(
+      chefCanvasRef.current,
+      {
+        role: 'chef',
+        skinColor: chef?.skinColor ?? '#f5cba7',
+        shirtColor: chef?.shirtColor ?? '#ffffff',
+        hairColor: chef?.hairColor ?? '#4a235a',
+        hairStyle: chef?.hairStyle ?? 'classic',
+      },
+      38,
+      40
+    );
+  }, [chef?.skinColor, chef?.shirtColor, chef?.hairColor, chef?.hairStyle]);
 
   return (
     <header className="top-hud">
       <div className="hud-left">
+        <div className="hud-chef-avatar" title={chef?.name ?? 'Chef'}>
+          <canvas ref={chefCanvasRef} />
+        </div>
         <div className="level-badge" title={`Nível ${state.level}`}>
           <Star className="level-star" size={26} fill="#ffd700" color="#b8860b" />
           <span>{state.level}</span>
@@ -122,6 +149,14 @@ export const TopHud: React.FC<TopHudProps> = ({
               title={state.soundEnabled ? 'Desativar Som' : 'Ativar Som'}
             >
               {state.soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+            </button>
+
+            <button
+              className={`icon-btn ${musicEnabled ? 'active' : ''}`}
+              onClick={onToggleMusic}
+              title={musicEnabled ? 'Pausar Música Ambiente' : 'Tocar Música Lounge'}
+            >
+              <Music size={16} />
             </button>
 
             <button
